@@ -47,7 +47,7 @@ public:
 
     ACTION claim( const uint64_t& plan_id, const name& owner);
 
-    ACTION claimall( const uint64_t& plan_id, const name& creator);
+    ACTION claimall( const uint64_t& plan_id );
 
     ACTION plantrace( const plan_trace_t& trace);
 

@@ -132,8 +132,9 @@ TBL token_split_plan_t {
 
 // scope: self
 TBL account_t{
-    name                        owner;
-    asset                       balance = asset(0,SYS_SYMB);
+    name                                owner;
+    
+    asset                               balance = asset(0,SYS_SYMB);
 
     uint64_t primary_key()const { return owner.value; }
 
@@ -142,16 +143,15 @@ TBL account_t{
 
 // scope: plan_id
 TBL wallet_t {
-
     name                                owner;
+
     map<extended_symbol, asset>         balances;
     time_point_sec                      create_at;
     time_point_sec                      update_at;
 
     uint64_t primary_key()  const { return owner.value; }
 
-    typedef multi_index<"wallets"_n, wallet_t
-    > tbl_t;
+    typedef multi_index< "wallets"_n, wallet_t > tbl_t;
 };
 
 } //namespace amax

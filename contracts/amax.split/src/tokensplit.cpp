@@ -17,9 +17,11 @@ static constexpr name ACTIVE_PERM       = "active"_n;
             tokensplit::plantrace_action(get_self(), {{get_self(), ACTIVE_PERM}}) \
                .send(plan_trace_t);
 
-#define CLAIMALL(owner,plan_id)                             \
+#define CLAIMALL(plan_id)                             \
             tokensplit::claimall_action(get_self(), {{get_self(), ACTIVE_PERM}}) \
-               .send(plan_id,owner);
+               .send(plan_id);
+
+
 namespace db {
 
     template<typename table, typename Lambda>
@@ -146,15 +148,16 @@ void tokensplit::editplan(const name& owner,const uint64_t& plan_id,const vector
     });
 
     if (is_auto){
-        wallet_t::tbl_t wallets(_self,plan_id);
+        wallet_t::tbl_t wallets(_self, plan_id);
         auto itr = wallets.begin();
-        if (itr != wallets.end()) CLAIMALL(owner,plan_id);
+        if (itr != wallets.end()) CLAIMALL( plan_id );
     }
 }
 
 void tokensplit::closeplan(const name& creator, const uint64_t& plan_id){
     require_auth( creator );
-    CHECKC( _gstate2.running, err::NO_AUTH,"paused")
+
+    CHECKC( _gstate2.running, err::NO_AUTH, "paused")
     token_split_plan_t::tbl_t plans( _self, _self.value);
     auto plan_itr = plans.find(plan_id);
     CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND,"plan not found!")
@@ -162,32 +165,29 @@ void tokensplit::closeplan(const name& creator, const uint64_t& plan_id){
     CHECKC( plan_itr-> status == plan_status::RUNNING,err::DATA_MISMATCH,"Plan closed")
 
     plans.modify( plan_itr,same_payer ,[&]( auto& row ) {
-        
         row.status          = plan_status::CLOSED;
     });
 
     // _empty_wallets(creator,plan_id);
 }
 
-void tokensplit::claim( const uint64_t& plan_id, const name& owner){
-
-    CHECKC( _gstate2.running, err::NO_AUTH,"paused")
+void tokensplit::claim( const uint64_t& plan_id, const name& owner ) {
+    CHECKC( _gstate2.running, err::NO_AUTH, "paused" )
 
     token_split_plan_t::tbl_t plans( _self, _self.value);
     auto plan_itr = plans.find( plan_id);
-    CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND,"plan not found!")
-
-    CHECKC( has_auth(owner) || has_auth(plan_itr -> creator),err::NO_AUTH,"no auth")
+    CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND, "plan not found!" )
+    // CHECKC( has_auth(owner) || has_auth(plan_itr->creator), err::NO_AUTH, "no auth" )
     
-    wallet_t::tbl_t wallets(_self,plan_id);
-    auto wallet_itr = wallets.find(owner.value);
+    wallet_t::tbl_t wallets(_self, plan_id);
+    auto wallet_itr = wallets.find( owner.value );
 
-    CHECKC( wallet_itr != wallets.end(), err::RECORD_NOT_FOUND,"wallet not found!")
-    CHECKC( !wallet_itr -> balances.empty(), err::RECORD_NOT_FOUND,"no rewards to claim")
+    CHECKC( wallet_itr != wallets.end(), err::RECORD_NOT_FOUND, "wallet not found!")
+    CHECKC( !wallet_itr -> balances.empty(), err::RECORD_NOT_FOUND, "no rewards to claim")
 
     auto balances = wallet_itr -> balances;
-    for ( auto w : balances){
-        if ( w.second.amount > 0)
+    for( auto w : balances ) {
+        if( w.second.amount > 0 )
             TRANSFER( w.first.get_contract(), wallet_itr -> owner, w.second, "claim rewards" )        
     }
     
@@ -195,21 +195,21 @@ void tokensplit::claim( const uint64_t& plan_id, const name& owner){
     wallets.erase(wallet_itr);
 }
 
-void tokensplit::claimall( const uint64_t& plan_id, const name& creator){
+void tokensplit::claimall( const uint64_t& plan_id ){
+    // require_auth( creator );
 
-    // CHECKC( has_auth(_self) || has_auth(creator),err::NO_AUTH,"no auth");
+    CHECKC( _gstate2.running, err::NO_AUTH, "paused")
 
-    CHECKC( _gstate2.running, err::NO_AUTH,"paused")
-    token_split_plan_t::tbl_t plans( _self, _self.value);
+    token_split_plan_t::tbl_t plans( _self, _self.value );
     auto plan_itr = plans.find( plan_id);
-    CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND,"plan not found!")
-    CHECKC( plan_itr -> creator == creator, err::NO_AUTH,"no auth")
+    CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND, "plan not found!" )
+    // CHECKC( plan_itr -> creator == creator, err::NO_AUTH, "no auth")
 
-    _empty_wallets(plan_id);
-    
+    _empty_wallets( plan_id );
 }
 
-void tokensplit::plantrace(const plan_trace_t& trace){
+//for chainscan to check with 
+void tokensplit::plantrace( const plan_trace_t& trace ){
     require_auth(get_self());
 }
 
@@ -242,22 +242,24 @@ void tokensplit::ontransfer(const name& from, const name& to, const asset& quant
 
     switch (action_name.value){
         case action_name::FEE:
-            _recharge(from,quant);
+            _recharge(from, quant);
             break;
-        case action_name::PLAN:{
+
+        case action_name::PLAN:
+        {
             auto plan_id = stoi( string( memo_params[1] ));
             auto boost = 1;
             if (memo_params.size() == 3){
                 boost = stoi( string( memo_params[2] ));
             }
-            _split(from,plan_id,quant,boost);
+            _split(from, plan_id, quant, boost);
             break;
-        }   
+        }
+        
         default:
             CHECKC( false, err::PARAM_ERROR, "memo not Supported");
             break;
     }
-
 }
 
 
@@ -281,68 +283,62 @@ void tokensplit::_recharge( const name& owner, const asset& quantity){
         TRANSFER( SYS_BANK, _gstate2.fee_receiver, quantity, "" ) 
 }
 
-void tokensplit::_split( const name& from, const uint64_t& plan_id, const asset& quant,const uint64_t& boost){
+void tokensplit::_split( const name& from, const uint64_t& plan_id, const asset& quant, const uint64_t& boost ){
     token_split_plan_t::tbl_t plans( _self, _self.value);
     auto plan_itr = plans.find( plan_id);
-    CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND,"plan not found")
-    CHECKC( plan_itr-> status == plan_status::RUNNING,err::DATA_MISMATCH,"Plan closed")
+    CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND, "plan not found")
+    CHECKC( plan_itr-> status == plan_status::RUNNING, err::DATA_MISMATCH, "Plan closed")
 
     auto token_bank = get_first_receiver();
     auto current_quant = quant;
 
-    for ( auto p : plan_itr-> split_conf){
-
-        auto to = p.token_receiver;
-        auto amount = p.token_split_amount;
-        auto tokens = asset( 0, quant.symbol );
+    for( auto& p : plan_itr-> split_conf ){
+        auto to                 = p.token_receiver;
+        auto amount             = p.token_split_amount;
+        auto tokens             = asset( quant.amount * amount / PCT_BOOST, quant.symbol );
+        if( tokens.amount <= 0 ) break;
         // tokens.amount = ( plan_itr->split_by_rate ) ? multiply_decimal( quant.amount, amount, PCT_BOOST ) : multiply_decimal( amount, get_precision(quant.symbol), PCT_BOOST );
-        tokens.amount = quant.amount * amount / PCT_BOOST;
-        CHECKC( tokens<= current_quant, err::RATE_OVERLOAD, "Insufficient distribution balance")
+        CHECKC( tokens <= current_quant, err::RATE_OVERLOAD, "Insufficient distribution balance")
 
-        if (tokens.amount > 0) {
+        plan_trace_t trace;
+        trace.issuer            = from;
+        trace.plan_id           = plan_id;
+        trace.receiver          = to;
+        trace.contract          = token_bank;
+        trace.base_quantity     = quant;
+        trace.divide_quantity   = tokens;
+        trace.rate              = amount;
+        PLANTRACE( trace );
 
-            plan_trace_t trace;
-            trace.issuer = from;
-            trace.plan_id = plan_id;
-            trace.receiver = to;
-            trace.contract = token_bank;
-            trace.base_quantity = quant;
-            trace.divide_quantity = tokens;
-            trace.rate = amount;
-            PLANTRACE(trace);
+        if( plan_itr->split_type == split_type::AUTO ){
+            TRANSFER( token_bank, to, tokens, "" )
 
-            if ( plan_itr -> split_type == split_type::AUTO){
-                TRANSFER( token_bank, to, tokens, "" )
-            }else {
-                _add_wallet(to,plan_id,token_bank, tokens);
-            }
-
-            current_quant -= tokens;
-        }else {
-            break;
+        } else {
+            _add_wallet( to, plan_id, token_bank, tokens );
         }
-        
+
+        current_quant -= tokens;
     }
 
-    auto last_to = plan_itr-> split_conf[0].token_receiver;
+    auto last_to = plan_itr->split_conf[0].token_receiver;
     if (current_quant.amount > 0){
         if ( plan_itr -> split_type == split_type::AUTO){
             TRANSFER( token_bank, last_to, current_quant, "" )
-        }else {
-            _add_wallet(last_to,plan_id,token_bank, current_quant);
+
+        } else {
+            _add_wallet( last_to, plan_id, token_bank, current_quant );
         }
     }
 }
 
-void tokensplit::_add_wallet( const name& owner, const uint64_t& plan_id, const name& contract, const asset& quantity){
+void tokensplit::_add_wallet( const name& owner, const uint64_t& plan_id, const name& contract, const asset& quantity ){
+    extended_symbol sym = { quantity.symbol, contract };
 
-    extended_symbol sym = {quantity.symbol,contract};
-
-    wallet_t::tbl_t wallets(_self,plan_id);
+    wallet_t::tbl_t wallets( _self, plan_id);
     auto wallet_itr = wallets.find(owner.value);
 
     db::set( wallets, wallet_itr, _self, _self, [&]( auto& p, bool is_new ){
-        if ( is_new){
+        if( is_new ){
             // p.plan_id = plan_id;
             p.owner = owner;
             p.create_at = current_time_point();
@@ -350,7 +346,8 @@ void tokensplit::_add_wallet( const name& owner, const uint64_t& plan_id, const 
         
         if (p.balances.count(sym)){
             p.balances[sym] += quantity;
-        }else {
+
+        } else {
             p.balances[sym] = quantity;
         }
 
@@ -359,17 +356,15 @@ void tokensplit::_add_wallet( const name& owner, const uint64_t& plan_id, const 
 }
 
 bool tokensplit::_empty_wallets(const uint64_t& plan_id){
-
-    wallet_t::tbl_t wallets(_self,plan_id);
+    wallet_t::tbl_t wallets(_self, plan_id);
     auto itr = wallets.begin();
     if (itr == wallets.end()) return false;
 
     int curr = 0;
-    while( itr != wallets.end()){
-
+    while( itr != wallets.end() ) {
         auto balances = itr -> balances;
-        for ( auto w : balances){
-            if ( w.second.amount > 0)
+        for( auto& w : balances ) {
+            if( w.second.amount > 0 )
                 TRANSFER( w.first.get_contract(), itr->owner, w.second, "claim" )        
         }
         itr = wallets.erase(itr);
