@@ -93,11 +93,12 @@ void tokensplit::paused( const bool& paused){
     CHECKC( has_auth(_self) || has_auth(_gstate.admin),err::NO_AUTH,"no auth");
     _gstate2.running = !paused;
 }
+
 void tokensplit::addplan(const name& owner, const string& title, const vector<split_unit_s>& conf, const bool& is_auto) {
     
-    CHECKC( has_auth(owner) || has_auth(_gstate.admin),err::NO_AUTH,"no_auth")
+    CHECKC( has_auth(owner) || has_auth(_gstate.admin), err::NO_AUTH, "no_auth")
 
-    CHECKC( _gstate2.running, err::NO_AUTH,"paused")
+    CHECKC( _gstate2.running, err::NO_AUTH, "paused" )
     uint64_t size = conf.size();
     CHECKC( size >= _gstate2.min_split_count && size <= _gstate2.max_split_count,err::OVERSIZED,"Number of users is "+ to_string(_gstate2.min_split_count) + "-" + to_string(_gstate2.max_split_count))
     CHECKC( title.size() >= 4 && title.size()<= 255,err::OVERSIZED, "Title length should be 4-255" );
@@ -129,7 +130,7 @@ void tokensplit::addplan(const name& owner, const string& title, const vector<sp
     });
 }
 
-void tokensplit::editplan(const name& owner,const uint64_t& plan_id,const vector<split_unit_s>& conf, const bool& is_auto) {
+void tokensplit::editplan(const name& owner, const uint64_t& plan_id, const vector<split_unit_s>& conf, const bool& is_auto) {
     require_auth( owner );
 
     CHECKC( _gstate2.running, err::NO_AUTH,"paused")
@@ -142,7 +143,7 @@ void tokensplit::editplan(const name& owner,const uint64_t& plan_id,const vector
     CHECKC( plan_itr -> creator == owner,err::NO_AUTH,"no auth")
     CHECKC( plan_itr-> status == plan_status::RUNNING,err::DATA_MISMATCH,"Plan closed")
 
-    plans.modify( plan_itr,same_payer ,[&]( auto& row ) {
+    plans.modify( plan_itr, same_payer, [&]( auto& row ) {
         row.split_conf      = conf;
         row.split_type      = is_auto ? split_type::AUTO : split_type::MANUAL;
     });
