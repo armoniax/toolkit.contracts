@@ -205,7 +205,7 @@ void tokensplit::claimall( const uint64_t& plan_id ){
     CHECKC( plan_itr != plans.end(), err::RECORD_NOT_FOUND, "plan not found!" )
     // CHECKC( plan_itr -> creator == creator, err::NO_AUTH, "no auth")
 
-    _empty_wallets( plan_id );
+    CHECKC( _empty_wallets( plan_id ), err::RECORD_NOT_FOUND, "no wallet to be claimed" )
 }
 
 //for chainscan to check with 
@@ -361,18 +361,23 @@ bool tokensplit::_empty_wallets(const uint64_t& plan_id){
     if (itr == wallets.end()) return false;
 
     int curr = 0;
+    auto executed = false;
+
     while( itr != wallets.end() ) {
         auto balances = itr -> balances;
         for( auto& w : balances ) {
-            if( w.second.amount > 0 )
-                TRANSFER( w.first.get_contract(), itr->owner, w.second, "claim" )        
+            if( w.second.amount > 0 ) {
+                TRANSFER( w.first.get_contract(), itr->owner, w.second, "claim" )
+            }  
         }
         itr = wallets.erase(itr);
         curr ++;
-        if ( curr >= 20)
-            break;
+        
+        if( !executed ) executed = true;
+        if ( curr >= 20) break;
     }
-    return true;
+
+    return executed;
 }
 
 }  //namespace amax
