@@ -62,6 +62,16 @@ namespace amax {
       _dbc.set(accountrealme, _self);
    }
 
+   void amax_auth::delinfo( const name& auth, const name& account){
+      _check_action_auth(auth, ActionType::DELINFO);
+      account_realme_t accountrealme(account);
+      CHECKC( _dbc.get(accountrealme) , err::RECORD_NOT_FOUND, "account info not exist. ");
+      _dbc.del(accountrealme);
+
+      realme_dao::delauth_action delauth_act(_gstate.amax_dao_contract, { {get_self(), ACTIVE_PERM} });
+      delauth_act.send( get_self(),  account);
+   }
+
    void amax_auth::createorder(  
                         const uint64_t&            sn,
                         const name&                auth,

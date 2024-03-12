@@ -111,6 +111,7 @@ class [[eosio::contract("realme.auth")]] amax_auth : public contract {
 
    ACTION updateinfo( const name& admin, const name& account, const string& info);
    
+   ACTION delinfo( const name& auth, const name& account);
    /**
     * @brief 
     * 
