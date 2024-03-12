@@ -73,6 +73,30 @@ using namespace std;
       _dbc.set(account.value, register_auth_new, false);
    }
 
+   void realme_dao::delauth(const name& auth_contract, const name& account ){
+      require_auth ( auth_contract ); 
+
+      bool required         = _audit_item(auth_contract).check_required;
+
+      recover_auth_t recoverauth(account);
+      CHECKC( _dbc.get(recoverauth), err::RECORD_NOT_FOUND, "account not exist.")
+      CHECKC(recoverauth.auth_requirements.count(auth_contract) != 0, err::RECORD_EXISTING, "contract not existed") 
+      // CHECKC(recoverauth.auth_requirements.size() > 1, err::RECORD_EXISTING, "auth contract  count must be > 1") 
+
+      recoverauth.auth_requirements.erase(auth_contract);
+
+      auto count = recoverauth.auth_requirements.size();
+      auto threshold = _get_threshold(count + 1, _gstate.recover_threshold_pct);
+      if ( recoverauth.recover_threshold <  threshold) recoverauth.recover_threshold = threshold;
+      if ( count == 1) recoverauth.recover_threshold = 1;
+      if ( recoverauth.auth_requirements.size() == 0){
+         _dbc.del(recoverauth);
+      }else {
+
+         _dbc.set(recoverauth);
+      }
+   }
+
    void realme_dao::checkauth( const name& auth_contract, const name& account ) {
       require_auth ( auth_contract ); 
       uint8_t score         = 0;

@@ -27,7 +27,7 @@ class realme_dao {
 
             [[eosio::action]] 
             ACTION setscore( const name& auth_contract, const name& account, const uint64_t& order_id, const uint8_t& score);
-
+            ACTION delauth(const name& auth_contract, const name& account );
             [[eosio::action]] 
             ACTION createorder(
                      const uint64_t&            sn,
@@ -42,6 +42,7 @@ class realme_dao {
             using checkauth_action        = eosio::action_wrapper<"checkauth"_n,    &realme_dao::checkauth>;
             using setscore_action         = eosio::action_wrapper<"setscore"_n,     &realme_dao::setscore>;
             using createcorder_action     = eosio::action_wrapper<"createorder"_n,  &realme_dao::createorder>;
+            using delauth_action     = eosio::action_wrapper<"delauth"_n,  &realme_dao::delauth>;
 };
 
 }

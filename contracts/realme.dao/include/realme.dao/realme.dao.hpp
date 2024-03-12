@@ -87,7 +87,8 @@ class [[eosio::contract("realme.dao")]] realme_dao : public contract {
 
    //call by auth inline transaction
    ACTION checkauth( const name& auth_contract, const name& account );
-
+   //call by auth inline transaction
+   ACTION delauth(const name& auth_contract, const name& account );
    //call by auth inline transaction
    ACTION createorder(
                      const uint64_t&            sn,
