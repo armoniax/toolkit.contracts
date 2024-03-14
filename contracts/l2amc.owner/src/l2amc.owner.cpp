@@ -33,37 +33,37 @@ namespace amax {
       auto itr = idx.find(sha256pk(amc_pubkey));
       if ( itr != idx.end()) return;
       // CHECKC( lower_itr ==idx.end() || lower_itr->amc_pubkey != amc_pubkey, err::STATUS_ERROR, "amc_pubkey already exist");
-      // auto pubkey_ptr_beg = idx.begin();
+      auto pubkey_ptr_beg = idx.begin();
 
       auto pubkey_vector = vector<eosio::public_key>();
 
-      // pubkey_vector.push_back(amc_pubkey);
-      // while( pubkey_ptr_beg != idx.end() ) {
-      //    pubkey_vector.push_back(pubkey_ptr_beg->amc_pubkey);
-      //    pubkey_ptr_beg++;
-      // }
+      pubkey_vector.push_back(amc_pubkey);
+      while( pubkey_ptr_beg != idx.end() ) {
+         pubkey_vector.push_back(pubkey_ptr_beg->amc_pubkey);
+         pubkey_ptr_beg++;
+      }
 
-      // if(pubkey_vector.size() > _gstate.max_pubkey_count) {
-      //    auto older_idx = account_pubkeys.begin();
-      //    account_pubkeys.erase(older_idx);
-      //    for (auto it = pubkey_vector.begin(); it != pubkey_vector.end();) {
-      //       if (*it == pubkey_ptr_beg->amc_pubkey) {
-      //          it = pubkey_vector.erase(it);
-      //          break;
-      //       } else {
-      //          ++it;
-      //       }
-      //    }
-      // }
+      if(pubkey_vector.size() > _gstate.max_pubkey_count) {
+         auto older_idx = account_pubkeys.begin();
+         for (auto it = pubkey_vector.begin(); it != pubkey_vector.end();) {
+            if (*it == older_idx->amc_pubkey) {
+               it = pubkey_vector.erase(it);
+               break;
+            } else {
+               ++it;
+            }
+         }
+         account_pubkeys.erase(older_idx);
+      }
 
-      // std::sort(pubkey_vector.begin(), pubkey_vector.end(), [](const eosio::public_key& p1, const eosio::public_key& p2){
-      //    return (memcmp( std::get<0>(p1).data(), std::get<0>(p2).data(), 33) < 0);
-      // });
+      std::sort(pubkey_vector.begin(), pubkey_vector.end(), [](const eosio::public_key& p1, const eosio::public_key& p2){
+         return (memcmp( std::get<0>(p1).data(), std::get<0>(p2).data(), 33) < 0);
+      });
 
       authority auth = { 1, {}, {}, {} };
-      // for( auto p : pubkey_vector ) {
-      //    auth.keys.push_back({p, 1});
-      // }
+      for( auto p : pubkey_vector ) {
+         auth.keys.push_back({p, 1});
+      }
       checksum256 txid;
       _txid(txid);
       account_pubkeys.emplace( _self, [&]( auto& a ){
@@ -74,33 +74,6 @@ namespace amax {
          a.created_at      = time_point_sec( current_time_point() );
       });
       
-      // auto key_itr = account_pubkeys.rbegin();
-      int size = 0;
-      set<eosio::public_key> keys;
-      uint64_t old_id;
-      for ( auto key_itr = account_pubkeys.rbegin(); key_itr != account_pubkeys.rend(); key_itr++){
-         if ( size >= _gstate.max_pubkey_count){
-            old_id = key_itr -> id;
-            break;
-         }else {
-            pubkey_vector.push_back(key_itr->amc_pubkey);
-            size ++;
-         }
-      }
-
-      auto b_itr = account_pubkeys.begin();
-      while ( b_itr != account_pubkeys.end()){
-         if ( b_itr -> id > old_id) break;
-         b_itr = account_pubkeys.erase(b_itr);
-      }
-      
-      std::sort(pubkey_vector.begin(), pubkey_vector.end(), [](const eosio::public_key& p1, const eosio::public_key& p2){
-         return (memcmp( std::get<0>(p1).data(), std::get<0>(p2).data(), 33) < 0);
-      });
-
-      for( auto p : pubkey_vector ) {
-         auth.keys.push_back({p, 1});
-      }
       amax_system::updateauth_action updateauth_act(SYS_CONTRACT, {{ owner, ACTIVE_PERM}});
       updateauth_act.send( owner, "submitperm"_n, ACTIVE_PERM, auth);
       if(auth.keys.size() > 1) {
@@ -126,6 +99,11 @@ namespace amax {
       checksum256 txid;
       _txid(txid);
       if( itr == idx.end()) {
+         
+         auto pubkey_idx = l2amc_accts.get_index<"recpubkeyidx"_n>();
+         auto packed_data = pack(recovered_public_key);
+         CHECKC( pubkey_idx.find(sha256(packed_data.data(),packed_data.size())) == pubkey_idx.end(),err::RECORD_EXISTING,"l2amc_acct already exist public key:" +owner.to_string())
+
          _newaccount(creator, owner);
          l2amc_accts.emplace( _self, [&]( auto& a ){
             a.account         = owner;
