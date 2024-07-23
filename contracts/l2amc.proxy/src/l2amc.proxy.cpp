@@ -13,6 +13,9 @@ using namespace wasm;
 
 using namespace std;
 
+#define CHECKC(exp, code, msg) \
+      { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
+                                    + string("[[") + _self.to_string() + string("]] ") + msg); }
 std::string to_hex( const char* d, uint32_t s ) 
 {
     std::string r;
@@ -90,20 +93,24 @@ void proxy::init(const name& admin, const name& owner_contract){
 void proxy::activate( const name& account, 
                     const string& btc_pub_key,
                     const eosio::signature& signature,
-                    const public_key temp_amc_pub){
+                    const public_key& temp_amc_pub){
     require_auth(_gstate.admin);
 
-    auto packed_data = pack(msg_packed_t(MESSAGE_MAGIC,BIND_MSG));
-    auto public_key = recover_key(sha256sha256(packed_data),signature);
+    auto msg_packed = pack(temp_amc_pub);
+    auto packed_data = pack(msg_packed_t(MESSAGE_MAGIC,to_hex(msg_packed.data(),msg_packed.size())));
     
+    auto public_key = recover_key(sha256sha256(packed_data),signature);
 
     auto accs = l2amc_owner::l2amc_account_t::idx_t( _gstate.owner_contract, L2AMC_BTC_NAME.value);
     auto itr = accs.find(account.value);
     if ( itr == accs.end()){
         l2amc_owner::bind_action newaccount_act(_gstate.owner_contract,{ {get_self(), ACTIVE_PERM} });
         newaccount_act.send(_self,L2AMC_BTC_NAME,btc_pub_key,account,L2AMC_BTC_NAME,public_key);
+    }else {
+        CHECKC( itr -> xchain_pubkey == btc_pub_key, err::PARAM_ERROR,"l2amc_acct already exist l2amc pubkey: " + btc_pub_key )
+        CHECKC( itr -> recovered_public_key == public_key, err::PARAM_ERROR,"l2amc_acct already exist l2amc pubkey: " + account.to_string() )
     }
- 
+    
     l2amc_owner::updateauth_action setauth_act(_gstate.owner_contract,{ {get_self(), ACTIVE_PERM} });
     setauth_act.send(_self,account,temp_amc_pub);
 }
