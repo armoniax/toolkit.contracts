@@ -1,11 +1,14 @@
 #pragma once
 
 #include <eosio/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/permission.hpp>
 #include <eosio/action.hpp>
 
 #include <string>
+#include <amaxapplybps/amaxapplybps.db.hpp>
 
-#include <amax.applybp/amax.applybp.db.hpp>
+#include <amax_system.hpp>
 #include <wasm_db.hpp>
 
 namespace amax {
@@ -49,71 +52,53 @@ enum class err: uint8_t {
 };
 
 /**
- * The `amax.applybp` sample system contract defines the structures and actions that allow users to create, issue, and manage tokens for AMAX based blockchains. It demonstrates one way to implement a smart contract which allows for creation and management of tokens. It is possible for one to create a similar contract which suits different needs. However, it is recommended that if one only needs a token with the below listed actions, that one uses the `amax.applybp` contract instead of developing their own.
+ * The `amaxapplybps` sample system contract defines the structures and actions that allow users to create, issue, and manage tokens for AMAX based blockchains. It demonstrates one way to implement a smart contract which allows for creation and management of tokens. It is possible for one to create a similar contract which suits different needs. However, it is recommended that if one only needs a token with the below listed actions, that one uses the `amaxapplybps` contract instead of developing their own.
  *
- * The `amax.applybp` contract class also implements two useful public static methods: `get_supply` and `get_balance`. The first allows one to check the total supply of a specified token, created by an account and the second allows one to check the balance of a token for a specified account (the token creator account has to be specified as well).
+ * The `amaxapplybps` contract class also implements two useful public static methods: `get_supply` and `get_balance`. The first allows one to check the total supply of a specified token, created by an account and the second allows one to check the balance of a token for a specified account (the token creator account has to be specified as well).
  *
- * The `amax.applybp` contract manages the set of tokens, accounts and their corresponding balances, by using two internal multi-index structures: the `accounts` and `stats`. The `accounts` multi-index table holds, for each row, instances of `account` object and the `account` object holds information about the balance of one token. The `accounts` table is scoped to an eosio account, and it keeps the rows indexed based on the token's symbol.  This means that when one queries the `accounts` multi-index table for an account name the result is all the tokens that account holds at the moment.
+ * The `amaxapplybps` contract manages the set of tokens, accounts and their corresponding balances, by using two internal multi-index structures: the `accounts` and `stats`. The `accounts` multi-index table holds, for each row, instances of `account` object and the `account` object holds information about the balance of one token. The `accounts` table is scoped to an eosio account, and it keeps the rows indexed based on the token's symbol.  This means that when one queries the `accounts` multi-index table for an account name the result is all the tokens that account holds at the moment.
  *
  * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
  */
-class [[eosio::contract("amax.applybp")]] amax_applybp : public contract {
+class [[eosio::contract("amaxapplybps")]] amaxapplybps : public contract {
    
    private:
       dbc                 _dbc;
    public:
       using contract::contract;
   
-   amax_applybp(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
+   amaxapplybps(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
          _dbc(get_self()),
-         _global(get_self(), get_self().value),
-         _producer_tbl(get_self(), get_self().value)
+         _global(get_self(), get_self().value)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
         
     }
 
-    ~amax_applybp() { _global.set( _gstate, get_self() ); }
+    ~amaxapplybps() { _global.set( _gstate, get_self() ); }
 
+   ACTION init( const name& admin, const name& bbp_contract, const uint32_t& total_bbps_count){
+      require_auth( _self );
+      _gstate.admin              = admin;
+      _gstate.bbp_contract       = bbp_contract;
+      _gstate.total_bbps_count   = total_bbps_count;
+   }
 
-   ACTION init( const name& admin);
+   ACTION addproducer(const name& submiter, const name& producter,
+                     const eosio::public_key& mpubkey,
+                     const string& url, uint16_t location,
+                     std::optional<uint32_t> reward_shared_ratio);
 
-
-   ACTION applybp( const name& owner,
-                  const string& logo_uri,
-                  const string& org_name,
-                  const string& org_info,
-                  const name& dao_code,
-                  const string& reward_shared_plan,
-                  const string& manifesto,
-                  const string& issuance_plan);
-
-
-   ACTION updatebp(const name& owner,
-                  const string& logo_uri,
-                  const string& org_name,
-                  const string& org_info,
-                  const name& dao_code,
-                  const string& reward_shared_plan,
-                  const string& manifesto,
-                  const string& issuance_plan);
-
-   ACTION addproducer(const name& submiter,
-                  const name& owner,
-                  const string& logo_uri,
-                  const string& org_name,
-                  const string& org_info,
-                  const name& dao_code,
-                  const string& reward_shared_plan,
-                  const string& manifesto,
-                  const string& issuance_plan);
-
-   ACTION setstatus( const name& submiter, const name& owner, const name& status);
+   // ACTION setstatus( const name& submiter, const name& owner, const name& status);
 
    private:
       global_singleton    _global;
       global_t            _gstate;
-      producer_t::table   _producer_tbl;
+
+
+      inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
+         return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
+      }
 
       void _set_producer(const name& owner,
                   const string& logo_uri,

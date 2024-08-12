@@ -6,16 +6,16 @@
 #include <string>
 
 #include <amaxapplybbp/amaxapplybbp.db.hpp>
+#include <amaxapplybps.hpp>
 #include <wasm_db.hpp>
+#include <optional>
+#include <map>
+#include <amax.token.hpp>
 
 namespace amax {
 
 using std::string;
 using std::vector;
-
-#define TRANSFER(bank, to, quantity, memo) \
-    {	mtoken::transfer_action act{ bank, { {_self, active_perm} } };\
-			act.send( _self, to, quantity , memo );}
          
 using namespace wasm::db;
 using namespace eosio;
@@ -44,7 +44,8 @@ enum class err: uint8_t {
    FIRST_CREATOR        = 17,
    STATUS_ERROR         = 18,
    SCORE_NOT_ENOUGH     = 19,
-   NEED_REQUIRED_CHECK  = 20
+   NEED_REQUIRED_CHECK  = 20,
+   INSUFFICIENT_FUNDS   = 21,
 
 };
 
@@ -57,58 +58,228 @@ enum class err: uint8_t {
  *
  * Similarly, the `stats` multi-index table, holds instances of `currency_stats` objects for each row, which contains information about current supply, maximum supply, and the creator account for a symbol token. The `stats` table is scoped to the token symbol.  Therefore, when one queries the `stats` table for a token symbol the result is one single entry/row corresponding to the queried symbol token if it was previously created, or nothing, otherwise.
  */
-class [[eosio::contract("amaxapplybbp")]] amax_applybp : public contract {
-   
+class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
+
+   #define CHECKC(exp, code, msg) \
+   { if (!(exp)) eosio::check(false, string("[[") + to_string((int)code) + string("]] ")  \
+                                    + string("[[") + _self.to_string() + string("]] ") + msg); }
+
+   static constexpr eosio::name MT_BANK{"amax.mtoken"_n};
+   static constexpr eosio::name AMAX_BANK{"amax.token"_n};
+
    private:
       dbc                 _dbc;
    public:
       using contract::contract;
   
-   amax_applybp(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
+   amaxapplybbp(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
          _dbc(get_self()),
          _global(get_self(), get_self().value),
-         _producer_tbl(get_self(), get_self().value)
+         _bbp_t(get_self(), get_self().value),
+         _voter_t(get_self(), get_self().value),
+         _plan_t(get_self(), get_self().value)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
-        
     }
 
-    ~amax_applybp() { _global.set( _gstate, get_self() ); }
+    ~amaxapplybbp() { _global.set( _gstate, get_self() ); }
+   
+   ACTION version() {
+      map<extended_nsymbol, nasset> nfts;
+      nsymbol nsymb= nsymbol(1001,0);
+      auto exnsymbol= extended_nsymbol(nsymb, "amax.ntoken"_n);
+      nfts[exnsymbol] = nasset{1, nsymb};
+
+      nsymbol nsymb2= nsymbol(1001,0);
+      auto exnsymbol2= extended_nsymbol(nsymb2, "amax.ntoken"_n);
+      auto count = nfts.count(exnsymbol2);
+      CHECKC(false, err::STATUS_ERROR, to_string(count) + " " + exnsymbol2.get_contract().to_string() + " " + to_string(exnsymbol2.get_nsymbol().id) )
+      // CHECKC(false, err::STATUS_ERROR, "version 1.0.0")
+   }
+
+   ACTION init( const name& admin, const eosio::public_key& bbp_mkey, const name& bps_contract){
+      require_auth( _self );
+      _gstate.admin           = admin;
+      _gstate.bbp_mkey        = bbp_mkey;
+      _gstate.bps_contract   = bps_contract;
+   }
+
+   ACTION applybbp(const name&      owner,
+                  const uint32_t&   plan_id,
+                  const string&     logo_uri,
+                  const string&     org_name,
+                  const string&     org_info,
+                  const string&     mail,
+                  const string&     manifesto,
+                  const string&     url,
+                  const uint32_t&   location,
+                  const std::optional<eosio::public_key> pub_mkey);
+
+   ACTION updatebbp(const name& owner, const uint64_t plan_id, const string& logo_uri, const string& org_name,
+                  const string& org_info, const name& dao_code, const string& manifesto,
+                  const string& issuance_plan, const string& reward_shared_plan,
+                  const string& url,
+                     const uint32_t& location,
+                     const std::optional<eosio::public_key> pub_mkey ){
+
+   } 
+
+   [[eosio::on_notify("*::transfer")]]
+   void ontoken_transfer( name from, name to, asset quantity, string memo );
+
+   [[eosio::on_notify("amax.ntoken::transfer")]]
+   void onrecv_nft( name from, name to, const std::vector<nasset>& assets, string memo );
+
+   ACTION addvoters(const std::vector<name> &voters){
+      _check_admin();
+      CHECKC( voters.size() > 0 && voters.size() <= 50, err::OVERSIZED, "accounts oversized: " + std::to_string( voters.size()) )
+      voter_t::idx_t voter_accts( _self, _self.value );
+      auto voter_idx   = voter_accts.get_index<"voteridx"_n>();
+      auto addcount = 0;
+      for (auto& target : voters) {
+         CHECKC(is_account(target), err::ACCOUNT_INVALID, "account not existed: " + target.to_string() );
+         auto itr = voter_idx.find( target.value );
+         if (itr != voter_idx.end()) {
+            continue;   //found and skip
+         }
+         _gstate.total_voter_cnt++;
+         voter_accts.emplace( _self, [&]( auto& a ){
+            a.id              = _gstate.total_voter_cnt;
+            a.voter_account   = target;
+            a.created_at      = current_time_point();
+         });
+         addcount++;
+      }
+      CHECKC( addcount > 0, err::ACTION_REDUNDANT, "no new voter added" )
+   }
+
+   ACTION setplan(const uint64_t& plan_id, const uint64_t& bbp_quota, const uint64_t& min_sum_quant,
+               map<extended_symbol, asset> quants, 
+               map<extended_nsymbol, nasset> nfts){
+      _check_admin();
+      CHECKC( plan_id > 0, err::PARAM_ERROR, "plan_id invalid" )
+      CHECKC( bbp_quota > 0, err::PARAM_ERROR, "bbp_quota invalid" )
+      
+      auto plan_itr = _plan_t.find( plan_id );
+       if(plan_itr == _plan_t.end()) {
+         _plan_t.emplace( _self, [&]( auto& a ){
+            a.id                 = plan_id;
+            a.total_bbp_quota    = bbp_quota;
+            a.required_bbp_quota = 0;
+            a.finish_bbp_quota   = 0;
+            a.min_sum_quant      = min_sum_quant;
+            a.quants             = quants;
+            a.nfts               = nfts;
+            a.created_at         = current_time_point();
+         });
+       } else {
+         CHECKC(false, err::RECORD_EXISTING, "plan_id existed" )
+         // _plan_t.modify( plan_itr, _self, [&]( auto& a ){
+         //    a.total_bbp_quota       = bbp_quota;
+         //    a.quants                = quants;
+         //    a.nfts                  = nfts;
+         // });
+       }
+   }
+
+   ACTION tsetvoteridx(const uint64_t& voter_idx){
+      _check_admin();
+      _gstate.voter_idx = voter_idx;
+   }
+   
+   ACTION rmvoters(const std::vector<name> &voters){
+      _check_admin();
+   }
+
+   ACTION withdraw(const name& owner,const extended_symbol& symbol, const asset& refund_quant){
+      _check_admin();
+      _refund(owner,symbol, refund_quant );
+   }
 
 
-   ACTION init( const name& admin);
-
-
-   ACTION applybp( const name& owner,
-                  const string& logo_uri,
-                  const string& org_name,
-                  const string& org_info,
-                  const name& dao_code,
-                  const string& reward_shared_plan,
-                  const string& manifesto,
-                  const string& issuance_plan);
-
-
-   ACTION applybbp(const name& owner,
-                  const string& logo_uri,
-                  const string& org_name,
-                  const string& org_info,
-                  const name& dao_code,
-                  const string& manifesto,
-                  const string& issuance_plan);
-
+   
    private:
-      global_singleton    _global;
-      global_t            _gstate;
-      producer_t::table   _producer_tbl;
+      global_singleton        _global;
+      global_t                _gstate;
+      bbp_t::idx_t            _bbp_t;
+      voter_t::idx_t          _voter_t;
+      plan_t::idx_t           _plan_t;
 
-      void _set_producer(const name& owner,
-                  const string& logo_uri,
-                  const string& org_name,
-                  const string& org_info,
-                  const name& dao_code,
-                  const string& reward_shared_plan,
-                  const string& manifesto,
-                  const string& issuance_plan);
+
+      int _check_request_quant(
+                     const std::map<extended_symbol, asset>&       plan_quants,
+                     const std::map<extended_symbol, asset>&       quants,
+                     const uint64_t& min_sum_quant) {
+         auto ret = CHECK_FINISHED;
+         auto total_quant = 0;
+         for(auto& [symb, quant] : plan_quants) {
+            if(quants.count(symb) == 0) {
+               return CHECK_UNFINISHED;
+            }
+            if(quants.at(symb) < quant) {
+               return CHECK_UNFINISHED;  
+            }
+            total_quant += quants.at(symb).amount/calc_precision(quant.symbol.precision());
+         }
+         if(total_quant < min_sum_quant) {
+            return CHECK_UNFINISHED;
+         }
+         return ret;
+      };
+      
+      bool _on_receive_asset(const name& from, const name& to, const name& from_bank,
+         const asset& quantity, const nasset& nquantity, asset& amax_quant);
+
+      void _on_asset_finished(const name& owner, const name& from_bank, const asset& amax_quant);
+      int _check_request_nft(
+                     const std::map<extended_nsymbol, nasset>&       plan_nfts,
+                     const std::map<extended_nsymbol, nasset>&       nfts) {
+         auto ret = CHECK_FINISHED;
+      
+         for(auto& [symb, nft] : plan_nfts) {
+            if(nfts.count(symb) == 0) {
+               return CHECK_UNFINISHED;
+            }
+            if(nfts.at(symb) < nft) {
+               return CHECK_UNFINISHED;  
+            }
+
+            if(nfts.at(symb) > nft) {
+               ret = CHECK_NEED_REFUND;  
+            }
+         }
+         return true;
+      };
+
+      void _call_set_producer(
+                  const name& owner, const name& from_bank,
+                   const name& voter_account, const asset& quantity);
+
+      void _set_producer( 
+                  const name&      owner,
+                  const uint32_t&   plan_id,
+                  const string&     logo_uri,
+                  const string&     org_name,
+                  const string&     org_info,
+                  const string&     email,
+                  const string&     manifesto,
+                  const string&     url,
+                  const uint32_t&   location,
+                  const std::optional<eosio::public_key> pub_mkey);
+
+      void _check_admin(){
+         CHECKC( has_auth(_self) || has_auth(_gstate.admin), err::NO_AUTH, "no auth for operate" )
+      }
+      
+
+      void _txid(checksum256& txid) {
+         size_t tx_size = transaction_size();
+         char* buffer = (char*)malloc( tx_size );
+         read_transaction( buffer, tx_size );
+         txid = sha256( buffer, tx_size );
+      }
+
+
+      void _refund(const name& owner, const extended_symbol& symbol, const asset& refund_quant);
 };
 } //namespace amax
