@@ -174,11 +174,13 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          });
        } else {
          CHECKC(false, err::RECORD_EXISTING, "plan_id existed" )
-         // _plan_t.modify( plan_itr, _self, [&]( auto& a ){
-         //    a.total_bbp_quota       = bbp_quota;
-         //    a.quants                = quants;
-         //    a.nfts                  = nfts;
-         // });
+         _plan_t.modify( plan_itr, _self, [&]( auto& a ){
+            a.total_bbp_quota       = bbp_quota;
+            a.quants                = quants;
+            a.nfts                  = nfts;
+            a.min_sum_quant         = min_sum_quant;
+            a.updated_at            = current_time_point();
+         });
        }
    }
 
@@ -213,13 +215,15 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          auto ret = CHECK_FINISHED;
          auto total_quant = 0;
          for(auto& [symb, quant] : plan_quants) {
-            if(quants.count(symb) == 0) {
+            if(quants.count(symb) == 0 && quant.amount > 0) {
                return CHECK_UNFINISHED;
             }
-            if(quants.at(symb) < quant) {
-               return CHECK_UNFINISHED;  
+            if(quants.count(symb) > 0) {
+               if(quants.at(symb) < quant) {
+                  return CHECK_UNFINISHED;  
+               }
+               total_quant += quants.at(symb).amount/calc_precision(quant.symbol.precision());
             }
-            total_quant += quants.at(symb).amount/calc_precision(quant.symbol.precision());
          }
          if(total_quant < min_sum_quant) {
             return CHECK_UNFINISHED;

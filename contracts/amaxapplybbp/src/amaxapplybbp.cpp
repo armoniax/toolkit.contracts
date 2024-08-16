@@ -167,8 +167,7 @@ using namespace mdao;
 
       auto plan_itr = _plan_t.find(bbp_itr->plan_id);
       CHECKC( plan_itr != _plan_t.end(), err::RECORD_NOT_FOUND, "plan not found symbol" )
-      CHECKC( plan_itr->finish_bbp_quota <= plan_itr->total_bbp_quota, err::STATUS_ERROR, "this plan already finished")
-      amax_quant = plan_itr->quants.at(extended_symbol(AMAX_SYMBOL, AMAX_BANK));
+      CHECKC( plan_itr->finish_bbp_quota < plan_itr->total_bbp_quota, err::STATUS_ERROR, "this plan already finished")
 
       auto quants = bbp_itr->quants;
       auto nfts = bbp_itr->nfts;
@@ -214,8 +213,6 @@ using namespace mdao;
          });
          return false;
       }
-      
-     
 
       //paid finished
        db::set(_bbp_t, bbp_itr, _self, [&]( auto& p, bool is_new ) {
@@ -232,9 +229,13 @@ using namespace mdao;
       db::set(_plan_t, plan_itr, _self, [&]( auto& p, bool is_new ) {
          p.finish_bbp_quota = plan_itr->finish_bbp_quota + 1;
       });
-      
+
+      amax_quant = quants.at(extended_symbol(AMAX_SYMBOL, AMAX_BANK));
+      auto amax_quant_int = amax_quant.amount/calc_precision(amax_quant.symbol.precision());
+      if( amax_quant_int > plan_itr->min_sum_quant) {
+         amax_quant = asset(plan_itr->min_sum_quant * calc_precision(AMAX_SYMBOL.precision()), AMAX_SYMBOL);
+      }
       return true;
-      //allocate a partner
    }
 
    void amaxapplybbp::_call_set_producer(
