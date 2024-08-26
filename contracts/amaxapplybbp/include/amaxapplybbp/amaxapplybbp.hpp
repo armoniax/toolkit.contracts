@@ -173,7 +173,6 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
             a.created_at         = current_time_point();
          });
        } else {
-         CHECKC(false, err::RECORD_EXISTING, "plan_id existed" )
          _plan_t.modify( plan_itr, _self, [&]( auto& a ){
             a.total_bbp_quota       = bbp_quota;
             a.quants                = quants;
