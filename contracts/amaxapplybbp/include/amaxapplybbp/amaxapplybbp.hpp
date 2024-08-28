@@ -165,7 +165,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          _plan_t.emplace( _self, [&]( auto& a ){
             a.id                 = plan_id;
             a.total_bbp_quota    = bbp_quota;
-            a.required_bbp_quota = 0;
+            a.applied_bbp_quota = 0;
             a.finish_bbp_quota   = 0;
             a.min_sum_quant      = min_sum_quant;
             a.quants             = quants;

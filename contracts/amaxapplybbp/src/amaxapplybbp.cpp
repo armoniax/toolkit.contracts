@@ -98,7 +98,7 @@ using namespace mdao;
       if(bbp_itr ==_bbp_t.end()){
          //update plan
          db::set(_plan_t, plan_itr, _self, [&]( auto& p, bool is_new ) {
-            p.required_bbp_quota =  plan_itr->required_bbp_quota + 1;
+            p.applied_bbp_quota =  plan_itr->applied_bbp_quota + 1;
          });
       }
 
