@@ -158,7 +158,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
                map<extended_nsymbol, nasset> nfts){
       _check_admin();
       CHECKC( plan_id > 0, err::PARAM_ERROR, "plan_id invalid" )
-      CHECKC( bbp_quota > 0, err::PARAM_ERROR, "bbp_quota invalid" )
+      CHECKC( bbp_quota >= 0, err::PARAM_ERROR, "bbp_quota invalid" )
       
       auto plan_itr = _plan_t.find( plan_id );
        if(plan_itr == _plan_t.end()) {
