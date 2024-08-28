@@ -166,7 +166,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
             a.id                 = plan_id;
             a.total_bbp_quota    = bbp_quota;
             a.applied_bbp_quota = 0;
-            a.finish_bbp_quota   = 0;
+            a.finished_bbp_quota   = 0;
             a.min_sum_quant      = min_sum_quant;
             a.quants             = quants;
             a.nfts               = nfts;
