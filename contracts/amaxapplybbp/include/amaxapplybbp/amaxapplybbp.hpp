@@ -82,7 +82,9 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
         _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
-    ~amaxapplybbp() { _global.set( _gstate, get_self() ); }
+    ~amaxapplybbp() { 
+      _global.set( _gstate, get_self() );
+     }
    
    ACTION version() {
       map<extended_nsymbol, nasset> nfts;
@@ -197,11 +199,33 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
       _refund(owner,symbol, refund_quant );
    }
 
+   ACTION refund(const name& owner){
+      _check_admin();
+      _refund_owner(owner );
+   }
 
-   
+
+   ACTION updatestatus(const name& begin, const name& end){
+      _check_admin();
+      auto bbp_itr_beg = _bbp_t.lower_bound(begin.value);
+      auto bbp_itr_end = _bbp_t.upper_bound(end.value);
+      auto cnt=0;
+      while(bbp_itr_beg != bbp_itr_end) {
+         if(bbp_itr_beg->status == BbpStatus::REFUNDING) {
+            _bbp_t.modify( bbp_itr_beg, _self, [&]( auto& a ){
+               a.status = BbpStatus::FINISHED;
+            });
+         }
+         bbp_itr_beg++;
+         cnt++;
+      }
+      print("updatestatus cnt:", cnt);
+   }
+
    private:
       global_singleton        _global;
       global_t                _gstate;
+
       bbp_t::idx_t            _bbp_t;
       voter_t::idx_t          _voter_t;
       plan_t::idx_t           _plan_t;
@@ -221,10 +245,10 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
                if(quants.at(symb) < quant) {
                   return CHECK_UNFINISHED;  
                }
-               total_quant += quants.at(symb).amount/calc_precision(quant.symbol.precision());
+               total_quant += quants.at(symb).amount * calc_precision(4) /calc_precision(quant.symbol.precision());
             }
          }
-         if(total_quant < min_sum_quant) {
+         if(total_quant < min_sum_quant * calc_precision(4)) {
             return CHECK_UNFINISHED;
          }
          return ret;
@@ -251,7 +275,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
                ret = CHECK_NEED_REFUND;  
             }
          }
-         return true;
+         return ret;
       };
 
       void _call_set_producer(
@@ -282,7 +306,57 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          txid = sha256( buffer, tx_size );
       }
 
+      void _add_quant_stats( const uint64_t& plan_id, const extended_symbol ext_sym, const asset& quant){
+         gstats_t::idx_t stats( _self, _self.value );
+         auto stat_itr = stats.find( plan_id );
+         if(stat_itr != stats.end()) {
+            auto plan_quants  = stat_itr->quants;
+            if(plan_quants.count(ext_sym) == 0) {
+               plan_quants[ext_sym] = quant;
+            } else{
+               plan_quants[ext_sym] += quant;
+            }
+           stats.modify( stat_itr, _self, [&]( auto& a ){
+               a.quants = plan_quants;
+               a.updated_at = current_time_point();
+           });
+         } else {
+            stats.emplace( _self, [&]( auto& a ){
+               a.plan_id = plan_id;
+               a.quants[ext_sym] = quant;
+               a.created_at = current_time_point();
+               a.updated_at = current_time_point();
+            });
+         }
+      }
+
+      void _add_nquant_stats( const uint64_t& plan_id, const extended_nsymbol ext_sym, const nasset& quant){
+         gstats_t::idx_t stats( _self, _self.value );
+         auto stat_itr = stats.find( plan_id );
+         if(stat_itr != stats.end()) {
+            auto nfts  = stat_itr->nfts;
+            if(nfts.count(ext_sym) == 0) {
+               nfts[ext_sym] = quant;
+            } else{
+               nfts[ext_sym] += quant;
+            }
+           stats.modify( stat_itr, _self, [&]( auto& a ){
+               a.nfts = nfts;
+               a.updated_at = current_time_point();
+           });
+         } else {
+            stats.emplace( _self, [&]( auto& a ){
+               a.plan_id = plan_id;
+               a.nfts[ext_sym] = quant;
+               a.created_at = current_time_point();
+               a.updated_at = current_time_point();
+            });
+         }
+      }
+
 
       void _refund(const name& owner, const extended_symbol& symbol, const asset& refund_quant);
+
+      void _refund_owner(const name& owner);
 };
 } //namespace amax

@@ -57,6 +57,7 @@ NTBL("global") global_t {
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
+
 //scope _self
 TBL voter_t {
     uint64_t        id;                 //PK
@@ -116,6 +117,21 @@ TBL bbp_t {
                             (created_at)(updated_at)(quants)(nfts)(mkey))
 };
 
+TBL gstats_t {
+    uint64_t  plan_id;
+    map<extended_symbol, asset> quants;
+    map<extended_nsymbol, nasset> nfts;
+    time_point_sec                  created_at;
+    time_point_sec                  updated_at;
+
+    gstats_t(){}
+    uint64_t primary_key()const { return plan_id; }
+
+    typedef eosio::multi_index< "stats"_n,  gstats_t > idx_t;
+
+    EOSLIB_SERIALIZE(gstats_t, (plan_id)(quants)(nfts)(created_at)(updated_at))
+};
+
 TBL plan_t {
     uint64_t                        id;                 //PK
     uint64_t                        total_bbp_quota;
@@ -141,6 +157,7 @@ TBL plan_t {
     EOSLIB_SERIALIZE(plan_t, (id)(total_bbp_quota)(applied_bbp_quota)(fulfilled_bbp_quota)(min_sum_quant)(quants)(nfts)(created_at)(updated_at))
 
 };
+
 
 
 } //namespace amax
