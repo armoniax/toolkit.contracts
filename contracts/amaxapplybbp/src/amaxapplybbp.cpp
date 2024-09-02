@@ -336,6 +336,10 @@ using namespace mdao;
       }
       
       _bbp_t.erase(bbp_itr);
+      //更新plan
+      db::set(_plan_t, plan_itr, _self, [&]( auto& p, bool is_new ) {
+         p.applied_bbp_quota =  plan_itr->applied_bbp_quota - 1;
+      });
    }
 
 }//namespace amax
