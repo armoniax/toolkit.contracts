@@ -349,22 +349,28 @@ using namespace mdao;
    void amaxapplybbp::claimbbps( const uint32_t& count)
    {
       if(_gstateclaim.last_idx == ""_n)  _gstateclaim.last_idx = _ibbp_t.begin()->account;
+      auto first_account = _gstateclaim.last_idx;
       auto itr = _ibbp_t.find(_gstateclaim.last_idx.value);
       auto excute_count = 0;
       while (itr != _ibbp_t.end() && excute_count < count) {
-         _bbp_claim(itr->account, itr->rewarder);
+         if(_bbp_claim(itr->account, itr->rewarder)) {
+            excute_count++;
+         }
          itr++;
-         excute_count++;
          _gstateclaim.last_idx = itr->account;
       }
       if(itr == _ibbp_t.end()) {
          _gstateclaim.last_idx = _ibbp_t.begin()->account;
       }
-      CHECKC( excute_count > 0, err::RECORD_NOT_FOUND, "no record found");
+      CHECKC( excute_count > 0, err::RECORD_NOT_FOUND, "no bbp need claim: " + first_account.to_string());
    }
 
-   void amaxapplybbp::_bbp_claim(const name& bbp, const name& claimer){
+   bool amaxapplybbp::_bbp_claim(const name& bbp, const name& claimer){
       
+      auto reward = amax_system::get_reward("amax"_n, bbp);
+      if(reward.amount == 0) {
+         return false;
+      }
       amax_system::claimrewards_action act{ "amax"_n, { {_self, active_perm} } };\
       act.send( _self, bbp);
 
@@ -373,6 +379,7 @@ using namespace mdao;
          TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
       }
       _gstateclaim.total_claimed += balance;
+      return true;
 
    }
 

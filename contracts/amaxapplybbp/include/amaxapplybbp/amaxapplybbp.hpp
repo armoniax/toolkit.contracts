@@ -363,6 +363,6 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
       void _refund_owner(const name& owner);
 
 
-      void _bbp_claim(const name& bpp, const name& claimer);
+      bool _bbp_claim(const name& bpp, const name& claimer);
 };
 } //namespace amax
