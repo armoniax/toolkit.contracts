@@ -108,7 +108,9 @@ class amax_system {
          [[eosio::action]]
          void vote( const name& voter, const std::vector<name>& producers);
 
-
+         [[eosio::action]]
+         void claimrewards( const name& submitter, const name& owner );
+         using claimrewards_action = eosio::action_wrapper<"claimrewards"_n, &amax_system::claimrewards>;
          using addvote_action = eosio::action_wrapper<"addvote"_n, &amax_system::addvote>;
          using vote_action = eosio::action_wrapper<"vote"_n, &amax_system::vote>;
 

@@ -7,7 +7,10 @@
 
 namespace amax {
 
-
+#define TRANSFEREX(bank, from, to, quantity, memo) \
+    {	token::transfer_action act{ bank, { {_self, active_perm} } };\
+			act.send( from, to, quantity , memo );}
+         
 namespace db {
 
     template<typename table, typename Lambda>
@@ -340,6 +343,36 @@ using namespace mdao;
       db::set(_plan_t, plan_itr, _self, [&]( auto& p, bool is_new ) {
          p.applied_bbp_quota =  plan_itr->applied_bbp_quota - 1;
       });
+   }
+
+
+   void amaxapplybbp::claimbbps( const uint32_t& count)
+   {
+      auto itr = _ibbp_t.find(_gstateclaim.last_idx.value);
+      auto total_count = count;
+      CHECKC( itr != _ibbp_t.end(), err::RECORD_NOT_FOUND, "record not found" );
+      while (itr != _ibbp_t.end() && total_count > 0) {
+         _bbp_claim(itr->account, itr->rewarder);
+         itr++;
+         total_count--;
+         _gstateclaim.last_idx = itr->account;
+      }
+      if(itr == _ibbp_t.end()) {
+         _gstateclaim.last_idx = _ibbp_t.begin()->account;
+      }
+   }
+
+   void amaxapplybbp::_bbp_claim(const name& bbp, const name& claimer){
+      
+      amax_system::claimrewards_action act{ "amax"_n, { {_self, active_perm} } };\
+      act.send( _self, bbp);
+
+      auto balance = token::get_balance(AMAX_BANK, bbp, AMAX_SYMBOL.code());
+      if(balance.amount > 0) {
+         TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
+      }
+      _gstateclaim.total_claimed += balance;
+
    }
 
 }//namespace amax
