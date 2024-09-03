@@ -8,7 +8,7 @@
 namespace amax {
 
 #define TRANSFEREX(bank, from, to, quantity, memo) \
-    {	token::transfer_action act{ bank, { {_self, active_perm} } };\
+    {	token::transfer_action act{ bank, { {from, active_perm} } };\
 			act.send( from, to, quantity , memo );}
          
 namespace db {
@@ -348,18 +348,19 @@ using namespace mdao;
 
    void amaxapplybbp::claimbbps( const uint32_t& count)
    {
+      if(_gstateclaim.last_idx == ""_n)  _gstateclaim.last_idx = _ibbp_t.begin()->account;
       auto itr = _ibbp_t.find(_gstateclaim.last_idx.value);
-      auto total_count = count;
-      CHECKC( itr != _ibbp_t.end(), err::RECORD_NOT_FOUND, "record not found" );
-      while (itr != _ibbp_t.end() && total_count > 0) {
+      auto excute_count = 0;
+      while (itr != _ibbp_t.end() && excute_count < count) {
          _bbp_claim(itr->account, itr->rewarder);
          itr++;
-         total_count--;
+         excute_count++;
          _gstateclaim.last_idx = itr->account;
       }
       if(itr == _ibbp_t.end()) {
          _gstateclaim.last_idx = _ibbp_t.begin()->account;
       }
+      CHECKC( excute_count > 0, err::RECORD_NOT_FOUND, "no record found");
    }
 
    void amaxapplybbp::_bbp_claim(const name& bbp, const name& claimer){

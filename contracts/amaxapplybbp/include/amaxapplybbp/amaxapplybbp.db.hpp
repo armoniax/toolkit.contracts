@@ -138,7 +138,7 @@ TBL ibbp_t {
 
     uint64_t    primary_key()const { return account.value; }
 
-    typedef eosio::multi_index<"bbps"_n,ibbp_t> idx_t;
+    typedef eosio::multi_index<"ibbps"_n,ibbp_t> idx_t;
 
     EOSLIB_SERIALIZE( ibbp_t, (account)(rewarder)(created_at)(updated_at) )
 };
