@@ -158,10 +158,11 @@ class amax_system {
          using claimrewards_action = eosio::action_wrapper<"claimrewards"_n, &amax_system::claimrewards>;
          using addvote_action = eosio::action_wrapper<"addvote"_n, &amax_system::addvote>;
          using vote_action = eosio::action_wrapper<"vote"_n, &amax_system::vote>;
-         static asset get_reward( const name& token_contract_account, const name& owner)
+         static asset get_reward( const name& token_contract_account, const name& owner, time_point& last_claimed_time )
          {
             producers_table producttable( token_contract_account, token_contract_account.value );
             const auto& ac = producttable.get( owner.value );
+            last_claimed_time = ac.last_claimed_time;
             return ac.unclaimed_rewards;
          }
 };

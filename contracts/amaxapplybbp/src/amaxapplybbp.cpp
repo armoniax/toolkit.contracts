@@ -367,8 +367,12 @@ using namespace mdao;
 
    bool amaxapplybbp::_bbp_claim(const name& bbp, const name& claimer){
       
-      auto reward = amax_system::get_reward("amax"_n, bbp);
-      if(reward.amount == 0) {
+      time_point last_claimed_time;
+      auto reward = amax_system::get_reward("amax"_n, bbp, last_claimed_time);
+
+      auto diff =time_point_sec(current_time_point()) - last_claimed_time;
+      print( bbp.to_string() + " diff second:"+ to_string(int(diff.to_seconds())) + ",reward:" + reward.to_string() + "\n");
+      if(reward.amount == 0 || diff < seconds(3600*24)) {
          return false;
       }
       amax_system::claimrewards_action act{ "amax"_n, { {_self, active_perm} } };\
@@ -376,7 +380,7 @@ using namespace mdao;
 
       auto balance = token::get_balance(AMAX_BANK, bbp, AMAX_SYMBOL.code());
       if(balance.amount > 0) {
-         TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
+         // TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
       }
       _gstateclaim.total_claimed += balance;
       return true;
