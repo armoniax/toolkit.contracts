@@ -58,14 +58,14 @@ NTBL("global") global_t {
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 
-NTBL("globalclaim") globalclaim_t {              
+NTBL("globalclaim") globalclm_t {              
     asset    total_claimed = asset(0, AMAX_SYMBOL); 
     name     last_idx; 
     uint32_t bbp_count     = 0;
 
-    EOSLIB_SERIALIZE( globalclaim_t, (total_claimed)(last_idx)(bbp_count) )
+    EOSLIB_SERIALIZE( globalclm_t, (total_claimed)(last_idx)(bbp_count) )
 };
-typedef eosio::singleton< "globalclaim"_n, globalclaim_t > globalclaim_singleton;
+typedef eosio::singleton< "globalclaim"_n, globalclm_t > globalclaim_singleton;
 
 
 

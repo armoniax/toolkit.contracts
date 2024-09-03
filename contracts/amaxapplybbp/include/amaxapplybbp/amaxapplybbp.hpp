@@ -83,7 +83,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
-         _gstateclaim = _globalclaim.exists() ? _globalclaim.get() : globalclaim_t{};
+         _gstateclaim = _globalclaim.exists() ? _globalclaim.get() : globalclm_t{};
     }
 
     ~amaxapplybbp() { 
@@ -223,15 +223,15 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
         }
     }
    private:
-      global_singleton        _global;
-      global_t                _gstate;
-      globalclaim_singleton   _globalclaim;
-       globalclaim_t          _gstateclaim;
+      global_singleton           _global;
+      global_t                   _gstate;
+      globalclaim_singleton      _globalclaim;
+      globalclm_t                _gstateclaim;
 
-      bbp_t::idx_t            _bbp_t;
-      voter_t::idx_t          _voter_t;
-      plan_t::idx_t           _plan_t;
-      ibbp_t::idx_t         _ibbp_t;
+      bbp_t::idx_t               _bbp_t;
+      voter_t::idx_t             _voter_t;
+      plan_t::idx_t              _plan_t;
+      ibbp_t::idx_t              _ibbp_t;
 
 
       int _check_request_quant(
