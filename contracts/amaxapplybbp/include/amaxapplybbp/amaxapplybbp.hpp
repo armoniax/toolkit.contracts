@@ -198,7 +198,8 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
    ACTION addbbp( const std::vector<name>& bbps,const name& rewarder) {
         _check_admin( );
-
+        CHECKC( is_account(rewarder),err::ACCOUNT_INVALID, "account does not exist: " + rewarder.to_string() );
+      
         for (auto& bbp : bbps) {
             auto bbp_itr = _ibbp_t.find( bbp.value );
             CHECKC(bbp_itr ==  _ibbp_t.end(), err::RECORD_EXISTING, "bbp already exists" );
