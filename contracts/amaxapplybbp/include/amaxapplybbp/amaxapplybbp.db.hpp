@@ -143,6 +143,21 @@ TBL ibbp_t {
     EOSLIB_SERIALIZE( ibbp_t, (account)(rewarder)(created_at)(updated_at) )
 };
 
+TBL rewarder_t {
+    name            account;
+    asset           rewarded;
+    time_point_sec  created_at;
+    time_point_sec  updated_at;
+
+    rewarder_t() {};
+
+    uint64_t    primary_key()const { return account.value; }
+
+    typedef eosio::multi_index<"rewarders"_n,rewarder_t> idx_t;
+
+    EOSLIB_SERIALIZE( rewarder_t, (account)(rewarded)(created_at)(updated_at) )
+};
+
 TBL gstats_t {
     uint64_t  plan_id;
     map<extended_symbol, asset> quants;
