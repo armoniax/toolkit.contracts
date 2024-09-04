@@ -380,9 +380,25 @@ using namespace mdao;
 
       auto balance = token::get_balance(AMAX_BANK, bbp, AMAX_SYMBOL.code());
       if(balance.amount > 0) {
-         // TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
+         TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
       }
       _gstateclaim.total_claimed += balance;
+
+      rewarder_t::idx_t rewarder_tbl( _self, _self.value );
+      auto rewarder_itr = rewarder_tbl.find(claimer.value);
+      if(rewarder_itr == rewarder_tbl.end()) {
+         rewarder_tbl.emplace( _self, [&]( auto& a ){
+            a.account = claimer;
+            a.rewarded = balance;
+            a.created_at = current_time_point();
+            a.updated_at = current_time_point();
+         });
+      } else {
+         rewarder_tbl.modify(rewarder_itr, _self, [&]( auto& a ){
+            a.rewarded += balance;
+            a.updated_at = current_time_point();
+         });
+      }
       return true;
 
    }
