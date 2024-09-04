@@ -356,8 +356,8 @@ using namespace mdao;
          if(_bbp_claim(itr->account, itr->rewarder)) {
             excute_count++;
          }
-         itr++;
          _gstateclaim.last_idx = itr->account;
+         itr++;
       }
       if(itr == _ibbp_t.end()) {
          _gstateclaim.last_idx = _ibbp_t.begin()->account;

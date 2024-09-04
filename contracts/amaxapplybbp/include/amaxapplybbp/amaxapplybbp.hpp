@@ -220,7 +220,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
         for (auto& bbp : bbps) {
             auto bbp_itr = _ibbp_t.find( bbp.value );
-            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_NOT_FOUND, "bbp not found" );
+            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_NOT_FOUND, "bbp not found:" + bbp.to_string() );
             _ibbp_t.erase( bbp_itr );
             _gstateclaim.bbp_count--;
         }
