@@ -131,6 +131,8 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
    ACTION claimbbps(const uint32_t& count);
 
+   ACTION bbptransfer(const name& bpp, const name& claimer);
+
    ACTION addvoters(const std::vector<name> &voters){
       _check_admin();
       CHECKC( voters.size() > 0 && voters.size() <= 50, err::OVERSIZED, "accounts oversized: " + std::to_string( voters.size()) )
@@ -249,6 +251,8 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          });   
       }
    }
+
+   using bbptransfer_action = action_wrapper<"bbptransfer"_n, &amaxapplybbp::bbptransfer>;
    private:
       global_singleton           _global;
       global_t                   _gstate;

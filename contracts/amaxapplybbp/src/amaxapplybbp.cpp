@@ -378,10 +378,19 @@ using namespace mdao;
       amax_system::claimrewards_action act{ "amax"_n, { {_self, active_perm} } };\
       act.send( _self, bbp);
 
+      amaxapplybbp::bbptransfer_action transfer_act{ _self, { {_self, active_perm} } };
+      transfer_act.send( bbp, claimer);
+      return true;
+   }
+
+   void amaxapplybbp::bbptransfer(const name& bbp, const name& claimer){
+      require_auth( _self );
       auto balance = token::get_balance(AMAX_BANK, bbp, AMAX_SYMBOL.code());
-      if(balance.amount > 0) {
-         TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
+      if(balance.amount == 0) {
+         return;
       }
+   
+      TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
       _gstateclaim.total_claimed += balance;
 
       rewarder_t::idx_t rewarder_tbl( _self, _self.value );
@@ -399,8 +408,6 @@ using namespace mdao;
             a.updated_at = current_time_point();
          });
       }
-      return true;
-
    }
 
 }//namespace amax
