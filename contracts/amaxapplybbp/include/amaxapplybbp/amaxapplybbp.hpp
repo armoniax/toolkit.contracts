@@ -223,6 +223,32 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
             _gstateclaim.bbp_count--;
         }
     }
+
+    ACTION initstats(const uint64_t& plan_id, const map<extended_symbol, asset>& quants){
+      _check_admin();
+
+      auto plan = _plan_t.find( plan_id );
+      CHECKC( plan != _plan_t.end(), err::RECORD_NOT_FOUND, "plan not found" )
+      auto plan_quants = plan->quants;
+      for(auto& [symb, quant] : quants) {
+         CHECKC( plan_quants.count(symb) > 0, err::RECORD_NOT_FOUND, "plan not found" )
+      }
+      gstats_t::idx_t stats( _self, _self.value );
+      auto stat_itr = stats.find( plan_id );
+      if(stat_itr != stats.end()) {
+         stats.modify( stat_itr, _self, [&]( auto& a ){
+            a.quants = quants;
+            a.updated_at = current_time_point();
+         });
+      } else {
+         stats.emplace( _self, [&]( auto& a ){
+            a.plan_id = plan_id;
+            a.quants = quants;
+            a.created_at = current_time_point();
+            a.updated_at = current_time_point();
+         });   
+      }
+   }
    private:
       global_singleton           _global;
       global_t                   _gstate;
