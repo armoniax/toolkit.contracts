@@ -7,7 +7,10 @@
 
 namespace amax {
 
-
+#define TRANSFEREX(bank, from, to, quantity, memo) \
+    {	token::transfer_action act{ bank, { {from, active_perm} } };\
+			act.send( from, to, quantity , memo );}
+         
 namespace db {
 
     template<typename table, typename Lambda>
@@ -340,6 +343,48 @@ using namespace mdao;
       db::set(_plan_t, plan_itr, _self, [&]( auto& p, bool is_new ) {
          p.applied_bbp_quota =  plan_itr->applied_bbp_quota - 1;
       });
+   }
+
+
+   void amaxapplybbp::claimbbps( const uint32_t& count)
+   {
+      if(_gstateclaim.last_idx == ""_n)  _gstateclaim.last_idx = _ibbp_t.begin()->account;
+      auto first_account = _gstateclaim.last_idx;
+      auto itr = _ibbp_t.find(_gstateclaim.last_idx.value);
+      auto excute_count = 0;
+      while (itr != _ibbp_t.end() && excute_count < count) {
+         if(_bbp_claim(itr->account, itr->rewarder)) {
+            excute_count++;
+         }
+         itr++;
+         _gstateclaim.last_idx = itr->account;
+      }
+      if(itr == _ibbp_t.end()) {
+         _gstateclaim.last_idx = _ibbp_t.begin()->account;
+      }
+      CHECKC( excute_count > 0, err::RECORD_NOT_FOUND, "no bbp need claim: " + first_account.to_string());
+   }
+
+   bool amaxapplybbp::_bbp_claim(const name& bbp, const name& claimer){
+      
+      time_point last_claimed_time;
+      auto reward = amax_system::get_reward("amax"_n, bbp, last_claimed_time);
+
+      auto diff =time_point_sec(current_time_point()) - last_claimed_time;
+      print( bbp.to_string() + " diff second:"+ to_string(int(diff.to_seconds())) + ",reward:" + reward.to_string() + "\n");
+      if(reward.amount == 0 || diff < seconds(3600*24)) {
+         return false;
+      }
+      amax_system::claimrewards_action act{ "amax"_n, { {_self, active_perm} } };\
+      act.send( _self, bbp);
+
+      auto balance = token::get_balance(AMAX_BANK, bbp, AMAX_SYMBOL.code());
+      if(balance.amount > 0) {
+         // TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
+      }
+      _gstateclaim.total_claimed += balance;
+      return true;
+
    }
 
 }//namespace amax

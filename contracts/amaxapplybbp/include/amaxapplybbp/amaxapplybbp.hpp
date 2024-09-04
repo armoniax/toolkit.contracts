@@ -77,13 +77,18 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          _global(get_self(), get_self().value),
          _bbp_t(get_self(), get_self().value),
          _voter_t(get_self(), get_self().value),
-         _plan_t(get_self(), get_self().value)
+         _plan_t(get_self(), get_self().value),
+         _ibbp_t(get_self(), get_self().value),
+         _globalclaim(get_self(), get_self().value)
+
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
+         _gstateclaim = _globalclaim.exists() ? _globalclaim.get() : globalclm_t{};
     }
 
     ~amaxapplybbp() { 
       _global.set( _gstate, get_self() );
+      _globalclaim.set( _gstateclaim, get_self() );
      }
    
    ACTION version() {
@@ -117,20 +122,14 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
                   const uint32_t&   location,
                   const std::optional<eosio::public_key> pub_mkey);
 
-   ACTION updatebbp(const name& owner, const uint64_t plan_id, const string& logo_uri, const string& org_name,
-                  const string& org_info, const name& dao_code, const string& manifesto,
-                  const string& issuance_plan, const string& reward_shared_plan,
-                  const string& url,
-                     const uint32_t& location,
-                     const std::optional<eosio::public_key> pub_mkey ){
-
-   } 
 
    [[eosio::on_notify("*::transfer")]]
    void ontoken_transfer( name from, name to, asset quantity, string memo );
 
    [[eosio::on_notify("amax.ntoken::transfer")]]
    void onrecv_nft( name from, name to, const std::vector<nasset>& assets, string memo );
+
+   ACTION claimbbps(const uint32_t& count);
 
    ACTION addvoters(const std::vector<name> &voters){
       _check_admin();
@@ -184,15 +183,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
          });
        }
    }
-
-   ACTION tsetvoteridx(const uint64_t& voter_idx){
-      _check_admin();
-      _gstate.voter_idx = voter_idx;
-   }
    
-   ACTION rmvoters(const std::vector<name> &voters){
-      _check_admin();
-   }
 
    ACTION withdraw(const name& owner,const extended_symbol& symbol, const asset& refund_quant){
       _check_admin();
@@ -205,30 +196,42 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
    }
 
 
-   ACTION updatestatus(const name& begin, const name& end){
-      _check_admin();
-      auto bbp_itr_beg = _bbp_t.lower_bound(begin.value);
-      auto bbp_itr_end = _bbp_t.upper_bound(end.value);
-      auto cnt=0;
-      while(bbp_itr_beg != bbp_itr_end) {
-         if(bbp_itr_beg->status == BbpStatus::REFUNDING) {
-            _bbp_t.modify( bbp_itr_beg, _self, [&]( auto& a ){
-               a.status = BbpStatus::FINISHED;
+   ACTION addbbp( const std::vector<name>& bbps,const name& rewarder) {
+        _check_admin( );
+
+        for (auto& bbp : bbps) {
+            auto bbp_itr = _ibbp_t.find( bbp.value );
+            CHECKC(bbp_itr ==  _ibbp_t.end(), err::RECORD_EXISTING, "bbp already exists" );
+            _ibbp_t.emplace( _self, [&]( auto& row ) {
+                row.account     = bbp;
+                row.rewarder    = rewarder;
+                row.created_at  = current_time_point();
+                row.updated_at  = current_time_point();
             });
-         }
-         bbp_itr_beg++;
-         cnt++;
-      }
-      print("updatestatus cnt:", cnt);
-   }
+            _gstateclaim.bbp_count++;
+            
+        }
+    }
+    ACTION delbbp( const std::vector<name>& bbps) {
+        _check_admin( );
 
+        for (auto& bbp : bbps) {
+            auto bbp_itr = _ibbp_t.find( bbp.value );
+            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_NOT_FOUND, "bbp not found" );
+            _ibbp_t.erase( bbp_itr );
+            _gstateclaim.bbp_count--;
+        }
+    }
    private:
-      global_singleton        _global;
-      global_t                _gstate;
+      global_singleton           _global;
+      global_t                   _gstate;
+      globalclaim_singleton      _globalclaim;
+      globalclm_t                _gstateclaim;
 
-      bbp_t::idx_t            _bbp_t;
-      voter_t::idx_t          _voter_t;
-      plan_t::idx_t           _plan_t;
+      bbp_t::idx_t               _bbp_t;
+      voter_t::idx_t             _voter_t;
+      plan_t::idx_t              _plan_t;
+      ibbp_t::idx_t              _ibbp_t;
 
 
       int _check_request_quant(
@@ -358,5 +361,8 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
       void _refund(const name& owner, const extended_symbol& symbol, const asset& refund_quant);
 
       void _refund_owner(const name& owner);
+
+
+      bool _bbp_claim(const name& bpp, const name& claimer);
 };
 } //namespace amax
