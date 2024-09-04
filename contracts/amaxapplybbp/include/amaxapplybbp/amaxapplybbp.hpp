@@ -131,7 +131,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
    ACTION claimbbps(const uint32_t& count);
 
-   ACTION bbptransfer(const name& bpp, const name& claimer);
+   ACTION intransfer(const name& bpp, const name& target);
 
    ACTION addvoters(const std::vector<name> &voters){
       _check_admin();
@@ -252,7 +252,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
       }
    }
 
-   using bbptransfer_action = action_wrapper<"bbptransfer"_n, &amaxapplybbp::bbptransfer>;
+   using intransfer_action = action_wrapper<"intransfer"_n, &amaxapplybbp::intransfer>;
    private:
       global_singleton           _global;
       global_t                   _gstate;

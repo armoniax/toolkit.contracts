@@ -378,26 +378,26 @@ using namespace mdao;
       amax_system::claimrewards_action act{ "amax"_n, { {_self, active_perm} } };\
       act.send( _self, bbp);
 
-      amaxapplybbp::bbptransfer_action transfer_act{ _self, { {_self, active_perm} } };
-      transfer_act.send( bbp, claimer);
+      amaxapplybbp::intransfer_action intransfer_act{ _self, { {_self, active_perm} } };
+      intransfer_act.send( bbp, claimer);
       return true;
    }
 
-   void amaxapplybbp::bbptransfer(const name& bbp, const name& claimer){
+   void amaxapplybbp::intransfer(const name& bbp, const name& target){
       require_auth( _self );
       auto balance = token::get_balance(AMAX_BANK, bbp, AMAX_SYMBOL.code());
       if(balance.amount == 0) {
          return;
       }
    
-      TRANSFEREX( AMAX_BANK, bbp, claimer, balance, "" );
+      TRANSFEREX( AMAX_BANK, bbp, target, balance, "" );
       _gstateclaim.total_claimed += balance;
 
       rewarder_t::idx_t rewarder_tbl( _self, _self.value );
-      auto rewarder_itr = rewarder_tbl.find(claimer.value);
+      auto rewarder_itr = rewarder_tbl.find(target.value);
       if(rewarder_itr == rewarder_tbl.end()) {
          rewarder_tbl.emplace( _self, [&]( auto& a ){
-            a.account = claimer;
+            a.account = target;
             a.rewarded = balance;
             a.created_at = current_time_point();
             a.updated_at = current_time_point();
