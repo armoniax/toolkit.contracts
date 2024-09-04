@@ -21,62 +21,7 @@ using namespace std;
 using namespace eosio;
 
 #define HASH256(str) sha256(const_cast<char*>(str.c_str()), str.size())
-// #define TBL struct [[eosio::table, eosio::contract("amax.ntoken")]]
-// #define NTBL(name) struct [[eosio::table(name), eosio::contract("amax.ntoken")]]
-
-// NTBL("global") global_t {
-//     set<name> notaries;
-
-//     EOSLIB_SERIALIZE( global_t, (notaries) )
-// };
-// typedef eosio::singleton< "global"_n, global_t > global_singleton;
-
-// struct nsymbol {
-//     uint32_t id;
-//     uint32_t parent_id;
-
-//     nsymbol() {}
-//     nsymbol(const uint32_t& i): id(i),parent_id(0) {}
-//     nsymbol(const uint32_t& i, const uint32_t& pid): id(i),parent_id(pid) {}
-//     nsymbol(const uint64_t& raw): parent_id(raw >> 32), id(raw) {}
-
-//     friend bool operator==(const nsymbol&, const nsymbol&);
-//     bool is_valid()const { return( id > parent_id ); }
-//     uint64_t raw()const { return( (uint64_t) parent_id << 32 | id ); } 
-
-//     EOSLIB_SERIALIZE( nsymbol, (id)(parent_id) )
-// };
-
-// bool operator==(const nsymbol& symb1, const nsymbol& symb2) { 
-//     return( symb1.id == symb2.id && symb1.parent_id == symb2.parent_id ); 
-// }
-
-
-// struct nasset {
-//     int64_t         amount;
-//     nsymbol         symbol;
-
-//     nasset() {}
-//     nasset(const uint32_t& id): symbol(id), amount(0) {}
-//     nasset(const uint32_t& id, const uint32_t& pid): symbol(id, pid), amount(0) {}
-//     nasset(const uint32_t& id, const uint32_t& pid, const int64_t& am): symbol(id, pid), amount(am) {}
-//     nasset(const int64_t& amt, const nsymbol& symb): amount(amt), symbol(symb) {}
-
-//     nasset& operator+=(const nasset& quantity) { 
-//         check( quantity.symbol.raw() == this->symbol.raw(), "nsymbol mismatch");
-//         this->amount += quantity.amount; return *this;
-//     } 
-//     nasset& operator-=(const nasset& quantity) { 
-//         check( quantity.symbol.raw() == this->symbol.raw(), "nsymbol mismatch");
-//         this->amount -= quantity.amount; return *this; 
-//     }
-
-//     bool is_valid()const { return symbol.is_valid(); }
-    
-//     EOSLIB_SERIALIZE( nasset, (amount)(symbol) )
-// };
-
-TBL nstats_t {
+struct nstats_t {
     nasset          supply;
     nasset          max_supply;     // 1 means NFT-721 type
     string          token_uri;      // globally unique uri for token metadata { image, desc,..etc }
@@ -112,7 +57,7 @@ TBL nstats_t {
 };
 
 ///Scope: owner's account
-TBL account_t {
+struct account_t {
     nasset      balance;
     bool        paused = false;   //if true, it can no longer be transferred
 
@@ -126,18 +71,5 @@ TBL account_t {
     typedef eosio::multi_index< "accounts"_n, account_t > idx_t;
 };
 
-
-///Scope: owner's account
-TBL allowance_t{
-    name                        spender;                     // PK
-    map<uint32_t, uint64_t>     allowances;                 // KV : NFT PID -> amount
-
-    allowance_t() {}
-    uint64_t primary_key()const { return spender.value; }
-
-    EOSLIB_SERIALIZE(allowance_t, (spender)(allowances) )
-
-    typedef eosio::multi_index< "allowances"_n, allowance_t > idx_t;
-};
 
 } //namespace amax
