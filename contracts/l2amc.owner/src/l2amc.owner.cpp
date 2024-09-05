@@ -23,7 +23,7 @@ namespace amax {
 
    void l2amc_owner::updateauth(const name& proxy_contract, const name& owner, const eosio::public_key& amc_pubkey){
       require_auth(proxy_contract);
-      CHECKC( _gstate.amc_authers.find(proxy_contract) != _gstate.amc_authers.end(), err::NO_AUTH, "no auth to operate" )
+      CHECKC( _gstate.amc_authers.find(proxy_contract) != _gstate.amc_authers.end(), err::NO_AUTH, "no auth to operate updateauth" )
       _updateauth(owner,proxy_contract, amc_pubkey);
    }
 
@@ -91,7 +91,7 @@ namespace amax {
             const name& creator,
             const eosio::public_key& recovered_public_key){  
       require_auth(proxy_contract);
-      CHECKC( _gstate.amc_authers.find(proxy_contract) != _gstate.amc_authers.end(), err::NO_AUTH, "no auth to operate" )
+      CHECKC( _gstate.amc_authers.find(proxy_contract) != _gstate.amc_authers.end(), err::NO_AUTH, "no auth to operate bind" )
       l2amc_account_t::idx_t l2amc_accts (get_self(), l2amc_name.value );
       auto idx = l2amc_accts.get_index<"xchpubkeyidx"_n>();
       auto itr = idx.find(hash(xchain_pubkey));
@@ -121,7 +121,7 @@ namespace amax {
                         const name& amc_auther, 
                         const asset& stake_net_quantity, 
                         const asset& stake_cpu_quantity) {
-      CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate" )      
+      CHECKC( has_auth(_self),  err::NO_AUTH, "no auth to operate init" )      
 
       CHECKC( is_account( admin ), err::ACCOUNT_INVALID, admin.to_string() + ": invalid account" )
       CHECKC( is_account( amc_auther ), err::ACCOUNT_INVALID, amc_auther.to_string() + ": invalid account" )
@@ -136,7 +136,7 @@ namespace amax {
                   const vector<eosio::action>& actions,
                   const string& nonce){
       require_auth(proxy_contract);
-      CHECKC( _gstate.amc_authers.find(proxy_contract) != _gstate.amc_authers.end(), err::NO_AUTH, "no auth to operate" )
+      CHECKC( _gstate.amc_authers.find(proxy_contract) != _gstate.amc_authers.end(), err::NO_AUTH, "no auth to operate execaction" )
 
       l2amc_account_t::idx_t l2amc_accts (get_self(), l2amc_name.value );
       auto itr = l2amc_accts.find(owner.value);

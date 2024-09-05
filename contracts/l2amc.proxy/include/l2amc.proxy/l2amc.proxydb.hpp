@@ -82,6 +82,7 @@ static constexpr eosio::name OWNER_PERM         = "owner"_n;
 static constexpr eosio::name ACTIVE_PERM        = "active"_n;
 static constexpr eosio::name AMAX_CODE_PERM        = "amax.code"_n;
 static constexpr eosio::name L2AMC_BTC_NAME        = "btc"_n;
+static constexpr eosio::name L2AMC_TON_NAME        = "ton"_n;
 static constexpr eosio::symbol SYS_SYMB         = SYMBOL("AMAX", 8);
 
 PROXY_TBL_NAME("global") global_t {
@@ -89,6 +90,11 @@ PROXY_TBL_NAME("global") global_t {
    set<name>         amc_authers;
    name              owner_contract;
    typedef eosio::singleton< "global"_n, global_t > tbl_t;
+};
+
+PROXY_TBL_NAME("globalowner") globalowner_t {
+   map<name,name>              owner_contracts;
+   typedef eosio::singleton< "globalowner"_n, globalowner_t > tbl_t;
 };
 
 struct [[eosio::action]] action_t{

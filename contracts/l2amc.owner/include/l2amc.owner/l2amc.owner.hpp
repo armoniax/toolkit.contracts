@@ -75,9 +75,11 @@ class [[eosio::contract("l2amc.owner")]] l2amc_owner : public contract {
   
    l2amc_owner(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
          _dbc(get_self()),
-         _global(get_self(), get_self().value)
+         _global(get_self(), get_self().value),
+         _global2(get_self(), get_self().value)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
+        _gstate2 = _global2.exists() ? _global2.get() : global2_t{};
     }
     ~l2amc_owner() { _global.set( _gstate, get_self() ); }
 
@@ -119,9 +121,19 @@ class [[eosio::contract("l2amc.owner")]] l2amc_owner : public contract {
       _gstate.admin = admin;
    }
 
+
+   ACTION setproxyact( const name& proxy_action ) {
+      require_auth(_self) ;
+      _gstate2.proxy_action = proxy_action;
+      _global2.set( _gstate2, get_self() ); 
+   }
+
     private:
         global_singleton    _global;
         global_t            _gstate;
+
+        global2_singleton    _global2;
+        global2_t            _gstate2;
 
    private:
       void _updateauth( const name& owner,const name& proxy_contract,  const eosio::public_key& amc_pubkey);

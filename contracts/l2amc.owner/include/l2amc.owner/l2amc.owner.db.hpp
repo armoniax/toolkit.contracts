@@ -42,6 +42,12 @@ NTBL("global") global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
+
+NTBL("global2") global2_t {
+    name      proxy_action  = "submitaction"_n;
+};
+typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
+
 namespace ChainType {
     static constexpr eosio::name BTC            { "btc"_n       };
     static constexpr eosio::name ETH            { "eth"_n       };
