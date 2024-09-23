@@ -181,6 +181,8 @@ TBL plan_t {
     uint64_t                        min_sum_quant = 1200;
     map<extended_symbol, asset>     quants;                 //{amax: 600, amae:0 }
     map<extended_nsymbol, nasset>   nfts;
+    time_point_sec                  start_at;
+    time_point_sec                  ended_at;
     time_point_sec                  created_at;
     time_point_sec                  updated_at;
 
@@ -192,10 +194,11 @@ TBL plan_t {
 
     uint64_t primary_key()const { return id ; }
 
-    typedef eosio::multi_index< "plans"_n,  plan_t > idx_t;
+    typedef eosio::multi_index< "bbpplans"_n,  plan_t > idx_t;
 
 
-    EOSLIB_SERIALIZE(plan_t, (id)(total_bbp_quota)(applied_bbp_quota)(fulfilled_bbp_quota)(min_sum_quant)(quants)(nfts)(created_at)(updated_at))
+    EOSLIB_SERIALIZE(plan_t, (id)(total_bbp_quota)(applied_bbp_quota)(fulfilled_bbp_quota)(min_sum_quant)(quants)(nfts)
+        (start_at)(ended_at)(created_at)(updated_at))
 
 };
 
