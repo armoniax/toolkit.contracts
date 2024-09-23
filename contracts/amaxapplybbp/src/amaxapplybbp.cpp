@@ -89,6 +89,7 @@ using namespace mdao;
                   const std::optional<eosio::public_key> pub_mkey){
       auto plan_itr = _plan_t.find(plan_id);
       CHECKC( plan_itr != _plan_t.end(), err::RECORD_NOT_FOUND, "plan not found symbol" )
+      CHECKC( plan_itr->start_at <= current_time_point(), err::TIME_ERROR, "plan not started" ) 
 
       CHECKC( logo_uri.size() <= MAX_LOGO_SIZE ,err::OVERSIZED ,"logo size must be <= " + to_string(MAX_LOGO_SIZE))
       CHECKC( org_name.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"org_name size must be <= " + to_string(MAX_TITLE_SIZE))
