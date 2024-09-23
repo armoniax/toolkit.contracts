@@ -46,6 +46,7 @@ enum class err: uint8_t {
    SCORE_NOT_ENOUGH     = 19,
    NEED_REQUIRED_CHECK  = 20,
    INSUFFICIENT_FUNDS   = 21,
+   TIME_ERROR           = 22,
 
 };
 
@@ -157,6 +158,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
    }
 
    ACTION setplan(const uint64_t& plan_id, const uint64_t& bbp_quota, const uint64_t& min_sum_quant,
+               time_point_sec start_at, time_point_sec ended_at,
                map<extended_symbol, asset> quants, 
                map<extended_nsymbol, nasset> nfts){
       _check_admin();
@@ -173,6 +175,8 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
             a.min_sum_quant      = min_sum_quant;
             a.quants             = quants;
             a.nfts               = nfts;
+            a.started_at           = start_at;
+            a.ended_at           = ended_at;
             a.created_at         = current_time_point();
          });
        } else {
@@ -181,10 +185,51 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
             a.quants                = quants;
             a.nfts                  = nfts;
             a.min_sum_quant         = min_sum_quant;
+            a.started_at              = start_at;
+            a.ended_at              = ended_at;
             a.updated_at            = current_time_point();
          });
        }
    }
+
+   ACTION setplanex(const uint64_t& plan_id, const uint64_t& bbp_quota, const uint64_t& min_sum_quant,
+               time_point_sec start_at, time_point_sec ended_at,
+               uint64_t &applied_bbp_quota, uint64_t &fulfilled_bbp_quota,
+               map<extended_symbol, asset> quants, 
+               map<extended_nsymbol, nasset> nfts){
+      _check_admin();
+      CHECKC( plan_id > 0, err::PARAM_ERROR, "plan_id invalid" )
+      CHECKC( bbp_quota >= 0, err::PARAM_ERROR, "bbp_quota invalid" )
+      
+      auto plan_itr = _plan_t.find( plan_id );
+       if(plan_itr == _plan_t.end()) {
+         _plan_t.emplace( _self, [&]( auto& a ){
+            a.id                 = plan_id;
+            a.total_bbp_quota    = bbp_quota;
+            a.applied_bbp_quota  = applied_bbp_quota;
+            a.fulfilled_bbp_quota = fulfilled_bbp_quota;
+            a.min_sum_quant      = min_sum_quant;
+            a.quants             = quants;
+            a.nfts               = nfts;
+            a.started_at         = start_at;
+            a.ended_at           = ended_at;
+            a.created_at         = current_time_point();
+         });
+       } else {
+         _plan_t.modify( plan_itr, _self, [&]( auto& a ){
+            a.total_bbp_quota       = bbp_quota;
+            a.applied_bbp_quota     = applied_bbp_quota;
+            a.fulfilled_bbp_quota   = fulfilled_bbp_quota;
+            a.quants                = quants;
+            a.nfts                  = nfts;
+            a.min_sum_quant         = min_sum_quant;
+            a.started_at              = start_at;
+            a.ended_at              = ended_at;
+            a.updated_at            = current_time_point();
+         });
+       }
+   }
+
    
 
    ACTION withdraw(const name& owner,const extended_symbol& symbol, const asset& refund_quant){
@@ -220,7 +265,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
         for (auto& bbp : bbps) {
             auto bbp_itr = _ibbp_t.find( bbp.value );
-            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_NOT_FOUND, "bbp not found" );
+            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_NOT_FOUND, "bbp not found:" + bbp.to_string() );
             _ibbp_t.erase( bbp_itr );
             _gstateclaim.bbp_count--;
         }
