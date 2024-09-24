@@ -90,6 +90,7 @@ using namespace mdao;
       auto plan_itr = _plan_t.find(plan_id);
       CHECKC( plan_itr != _plan_t.end(), err::RECORD_NOT_FOUND, "plan not found symbol" )
       CHECKC( plan_itr->started_at <= current_time_point(), err::TIME_ERROR, "plan not started" ) 
+      CHECKC( plan_itr->ended_at > current_time_point(), err::TIME_ERROR, "plan have been finished" ) 
 
       CHECKC( logo_uri.size() <= MAX_LOGO_SIZE ,err::OVERSIZED ,"logo size must be <= " + to_string(MAX_LOGO_SIZE))
       CHECKC( org_name.size() <= MAX_TITLE_SIZE ,err::OVERSIZED ,"org_name size must be <= " + to_string(MAX_TITLE_SIZE))
