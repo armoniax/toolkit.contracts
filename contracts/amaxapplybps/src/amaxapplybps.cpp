@@ -69,7 +69,6 @@ using namespace amax;
          _gstate_scan.current_producer = itr->owner;
          _gstate_scan.current_producer_key = itr->by_elected_prod();
       }
-      CHECKC( execute_count > 0, err::RECORD_NOT_FOUND, "no bbp need claim: " + last_producer.to_string());
    }
 
 
