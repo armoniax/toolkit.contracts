@@ -53,7 +53,7 @@ using namespace amax;
          if(itr->ext) {
             reward_shared_ratio = itr->ext->reward_shared_ratio;
          }
-         if(itr->total_votes == 0) {
+         if(!itr->is_active) {
             itr = idx.end();
             break;
          }
