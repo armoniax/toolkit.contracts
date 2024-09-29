@@ -24,6 +24,7 @@ using namespace wasm::db;
 using namespace eosio;
 
 static constexpr name      NFT_BANK    = "did.ntoken"_n;
+static constexpr name      SYS_CONTRACT= "amax"_n;
 static constexpr eosio::name active_perm{"active"_n};
 
 
@@ -69,13 +70,16 @@ class [[eosio::contract("amaxapplybps")]] amaxapplybps : public contract {
   
    amaxapplybps(eosio::name receiver, eosio::name code, datastream<const char*> ds): contract(receiver, code, ds),
          _dbc(get_self()),
-         _global(get_self(), get_self().value)
+         _global(get_self(), get_self().value),
+         _globalscan(get_self(), get_self().value)
     {
         _gstate = _global.exists() ? _global.get() : global_t{};
+         _gstate_scan = _globalscan.exists() ? _globalscan.get() : globalscan_t{};
         
     }
 
-    ~amaxapplybps() { _global.set( _gstate, get_self() ); }
+    ~amaxapplybps() { _global.set( _gstate, get_self() );
+                     _globalscan.set( _gstate_scan, get_self() ); }     
 
    ACTION init( const name& admin, const name& bbp_contract, const uint32_t& total_bbps_count){
       require_auth( _self );
@@ -89,11 +93,16 @@ class [[eosio::contract("amaxapplybps")]] amaxapplybps : public contract {
                      const string& url, uint16_t location,
                      std::optional<uint32_t> reward_shared_ratio);
 
+   ACTION refreshbbp(const uint32_t& count);
+
    // ACTION setstatus( const name& submiter, const name& owner, const name& status);
+
 
    private:
       global_singleton    _global;
       global_t            _gstate;
+      globalscan_singleton _globalscan;
+      globalscan_t        _gstate_scan;
 
 
       inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
