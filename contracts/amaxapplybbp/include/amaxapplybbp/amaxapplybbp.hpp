@@ -134,6 +134,8 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
 
    ACTION intransfer(const name& bpp, const name& target);
 
+   ACTION changebbp(const name& new_bbp, const name& older_bbp, const uint64_t& voter_id);
+
    ACTION addvoters(const std::vector<name> &voters){
       _check_admin();
       CHECKC( voters.size() > 0 && voters.size() <= 50, err::OVERSIZED, "accounts oversized: " + std::to_string( voters.size()) )
@@ -251,10 +253,10 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
             auto bbp_itr = _ibbp_t.find( bbp.value );
             CHECKC(bbp_itr ==  _ibbp_t.end(), err::RECORD_EXISTING, "bbp already exists" );
             _ibbp_t.emplace( _self, [&]( auto& row ) {
-                row.account     = bbp;
-                row.rewarder    = rewarder;
-                row.created_at  = current_time_point();
-                row.updated_at  = current_time_point();
+               row.account     = bbp;
+               row.rewarder    = rewarder;
+               row.created_at  = current_time_point();
+               row.updated_at  = current_time_point();
             });
             _gstateclaim.bbp_count++;
             

@@ -59,6 +59,41 @@ using namespace mdao;
       _set_producer(owner, plan_id, logo_uri, org_name, org_info, email, manifesto, url, location, pub_mkey);
    }
 
+   void amaxapplybbp::changebbp(const name& new_bbp, const name& older_bbp, const uint64_t& voter_id){
+      require_auth( _self );
+      auto bbp_itr = _bbp_t.find(older_bbp.value);
+      CHECKC( bbp_itr != _bbp_t.end(), err::RECORD_NOT_FOUND, "bbp not found:" + older_bbp.to_string())
+   
+      auto voter_itr = _voter_t.find(voter_id);
+      CHECKC( voter_itr != _voter_t.end(), err::RECORD_NOT_FOUND, "voter not found:" + to_string(voter_id))
+      CHECKC( voter_itr->bbp_account == older_bbp, err::STATUS_ERROR, "bbp not match:" + older_bbp.to_string())
+
+      _voter_t.modify(voter_itr, _self, [&]( auto& p ) {
+         p.bbp_account = new_bbp;
+         p.updated_at = current_time_point();
+      });
+
+      _bbp_t.emplace(_self, [&]( auto& p ) {
+         p.owner        = new_bbp;
+         p.amc_txid     = bbp_itr->amc_txid;
+         p.plan_id      = bbp_itr->plan_id;
+         p.logo_uri     = bbp_itr->logo_uri;
+         p.org_name     = bbp_itr->org_name;
+         p.org_info     = bbp_itr->org_info;
+         p.dao_code     = bbp_itr->dao_code;
+         p.manifesto    = bbp_itr->manifesto;
+         p.email        = bbp_itr->email;
+         p.url          = bbp_itr->url;
+         p.location     = bbp_itr->location;
+         p.mkey         = bbp_itr->mkey;
+         p.status       = bbp_itr->status;
+         p.created_at   = bbp_itr->created_at;
+         p.updated_at   = current_time_point();
+      });
+
+      _bbp_t.erase(bbp_itr);
+   }
+
    // void amaxapplybbp::updatebbp(const name& owner,
    //                            const uint32_t& plan_id,
    //                            const string& logo_uri,

@@ -53,6 +53,10 @@ using namespace amax;
          if(itr->ext) {
             reward_shared_ratio = itr->ext->reward_shared_ratio;
          }
+         if(itr->total_votes == 0) {
+            itr = idx.end();
+            break;
+         }
          addproducer_act.send(itr->owner, itr->producer_authority, itr->url, itr->location, reward_shared_ratio);
          
          execute_count++;
