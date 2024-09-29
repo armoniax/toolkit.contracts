@@ -43,13 +43,12 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 
 NTBL("globalscan") globalscan_t {
-    name                current_producer;   
+    name                current_producer;  
+    uint128_t           current_producer_key; 
     time_point_sec      scan_started_at;
     int32_t             scan_interval_minutes = 60*12;  
-
     
-    EOSLIB_SERIALIZE( globalscan_t, (current_producer)(scan_started_at)(scan_interval_minutes))
-
+    EOSLIB_SERIALIZE( globalscan_t, (current_producer)(current_producer_key)(scan_started_at)(scan_interval_minutes))
 };
 
 typedef eosio::singleton< "global"_n, global_t > global_singleton;

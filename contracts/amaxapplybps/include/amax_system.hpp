@@ -100,6 +100,11 @@ namespace amax {
          return uint128_t(hi) << 64 | owner.value;
       }
 
+      inline uint128_t by_elected_prod() const {
+         return ext ? by_elected_prod(owner, is_active, ext->elected_votes)
+                    : by_elected_prod(owner, is_active, vote_asset_0);
+      }
+
       bool     active()const      { return is_active;                               }
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
@@ -108,7 +113,8 @@ namespace amax {
                                        (producer_authority)(ext) )
    };
    typedef eosio::multi_index< "producers"_n, producer_info,
-                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>>
+                               indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>>,
+                               indexed_by<"electedprod"_n,  const_mem_fun<producer_info, uint128_t, &producer_info::by_elected_prod>, /*Nullable*/ true >
                              > producers_table;
 
 class amax_system {

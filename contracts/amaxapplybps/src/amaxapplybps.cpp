@@ -32,19 +32,23 @@ using namespace amax;
    void amaxapplybps::refreshbbp(const uint32_t& count) {
       
       producers_table producttable( _gstate.sys_contract, _gstate.sys_contract.value );
-      auto idx = producttable.get_index<"prototalvote"_n>();
-
-      if(_gstate_scan.current_producer == ""_n) _gstate_scan.current_producer = producttable.begin()->owner;
-      if(_gstate_scan.current_producer == producttable.begin()->owner) {
+      auto idx = producttable.get_index<"electedprod"_n>();
+      auto itr = idx.end();
+      if( _gstate_scan.current_producer == ""_n) {
          CHECKC(_gstate_scan.scan_started_at.sec_since_epoch() + _gstate_scan.scan_interval_minutes * 60 < current_time_point().sec_since_epoch(),
           err::NOT_STARTED, "time not reached yet")
+         _gstate_scan.scan_started_at = current_time_point();
+         itr = idx.begin();
+         CHECKC( itr != idx.end(), err::RECORD_NOT_FOUND, "no bbp need claim");
+      } else {
+         itr = idx.find(_gstate_scan.current_producer_key);
       }
-      auto itr = producttable.find(_gstate_scan.current_producer.value);
+
       auto execute_count = 0;
       auto last_producer = _gstate_scan.current_producer;
 
       amax_system::addproducer_action addproducer_act( _gstate.sys_contract, {_self, "active"_n} );
-      while (itr != producttable.end() && execute_count < count) {
+      while (itr != idx.end() && execute_count < count) {
          block_signing_authority producer_authority = convert_to_block_signing_authority(itr->producer_key);
          auto reward_shared_ratio = 0;
          if(itr->ext) {
@@ -53,11 +57,14 @@ using namespace amax;
          addproducer_act.send(itr->owner, producer_authority, itr->url, itr->location, reward_shared_ratio);
          
          execute_count++;
-         _gstate_scan.current_producer = itr->owner;
          itr++;
       }
-      if(itr == producttable.end()) {
-         _gstate_scan.current_producer = producttable.begin()->owner;
+      if(itr == idx.end()) {
+         _gstate_scan.current_producer = ""_n;
+         _gstate_scan.current_producer_key = 0;
+      } else {
+         _gstate_scan.current_producer = itr->owner;
+         _gstate_scan.current_producer_key = itr->by_elected_prod();
       }
       CHECKC( execute_count > 0, err::RECORD_NOT_FOUND, "no bbp need claim: " + last_producer.to_string());
    }
