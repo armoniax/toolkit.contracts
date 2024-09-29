@@ -49,12 +49,11 @@ using namespace amax;
 
       amax_system::addproducer_action addproducer_act( _gstate.sys_contract, {_self, "active"_n} );
       while (itr != idx.end() && execute_count < count) {
-         block_signing_authority producer_authority = convert_to_block_signing_authority(itr->producer_key);
          auto reward_shared_ratio = 0;
          if(itr->ext) {
             reward_shared_ratio = itr->ext->reward_shared_ratio;
          }
-         addproducer_act.send(itr->owner, producer_authority, itr->url, itr->location, reward_shared_ratio);
+         addproducer_act.send(itr->owner, itr->producer_authority, itr->url, itr->location, reward_shared_ratio);
          
          execute_count++;
          itr++;
