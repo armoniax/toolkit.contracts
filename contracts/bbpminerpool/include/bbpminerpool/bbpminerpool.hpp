@@ -6,7 +6,6 @@
 #include <string>
 
 #include <bbpminerpool/bbpminerpool.db.hpp>
-#include <amaxapplybps.hpp>
 #include <wasm_db.hpp>
 #include <optional>
 #include <map>
