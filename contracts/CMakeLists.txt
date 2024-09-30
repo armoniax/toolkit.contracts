@@ -35,5 +35,6 @@ set(VOTING_ICON_URI   "voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfa
 # add_subdirectory(l2amc.proxy)
 
 # add_subdirectory(amax.applybp)
-add_subdirectory(amaxapplybbp)
-add_subdirectory(amaxapplybps)
+# add_subdirectory(amaxapplybbp)
+# add_subdirectory(amaxapplybps)
+add_subdirectory(bbpminerpool)
