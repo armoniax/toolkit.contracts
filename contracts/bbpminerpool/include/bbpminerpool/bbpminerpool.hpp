@@ -123,20 +123,6 @@ class [[eosio::contract("bbpminerpool")]] bbpminerpool : public contract {
    [[eosio::on_notify("*::transfer")]]
    void ontoken_transfer( name from, name to, asset quantity, string memo );
 
-   ACTION redeem(const name& account) {
-      require_auth( account );
-      auto itr = _voter_t.find( account.value );
-      CHECKC( itr != _voter_t.end(),  err::RECORD_NOT_FOUND,   "not a voter" );
-      CHECKC( itr->amount.amount > 0, err::INVALID_PARAM,      "nothing to redeem amount" );
-      auto amount = itr->amount;
-      _voter_t.modify( itr, get_self(), [&]( auto& r ) {
-         r.amount = asset(0, AMAX_SYMBOL);
-         r.updated_at = current_time_point();
-      });
-      _gstate.total_vote_recd -= amount;
-      TRANSFER( AMAX_BANK, account, amount, "reward" );
-   }
-
    private:
       global_singleton           _global;
       global_t                   _gstate;

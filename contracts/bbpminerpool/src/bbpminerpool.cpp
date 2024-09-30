@@ -26,6 +26,17 @@ void bbpminerpool::ontoken_transfer( name from, name to, asset quantity, string 
    //CASE-1: main-voter refuel for voter to redeem
    if(memo == "refuel") { return; }
 
+
+   if(memo == "redeem") {
+      auto itr = _voter_t.find( from.value );
+      CHECKC( itr != _voter_t.end(), err::RECORD_NOT_FOUND, "voter not found" );
+      CHECKC( itr->amount.amount > 0, err::INVALID_PARAM, "invalid amount" );
+      TRANSFER( AMAX_BANK, from, itr->amount, "redeem" );
+      _gstate.total_vote_recd -= itr->amount;
+      _voter_t.erase( itr );
+      return;
+   }
+
    //CASE-2: voter 领取奖励
    if(_gstate.rewarders.count(from)) {
       _gstate.total_rewarded += quantity;
@@ -58,11 +69,21 @@ void bbpminerpool::ontoken_transfer( name from, name to, asset quantity, string 
 
    //CASE-3: 接收voter AMAX 
    auto itr = _voter_t.find( from.value );
-   CHECKC( itr != _voter_t.end(), err::RECORD_NOT_FOUND, "not a voter" );
-   _voter_t.modify( itr, get_self(), [&]( auto& r ) {
-      r.amount += quantity;
-      r.updated_at = current_time_point();
-   });
+
+   if(itr == _voter_t.end()) {
+      _voter_t.emplace( _self, [&]( auto& r ) {
+         r.account         = from;
+         r.amount          = quantity;
+         r.total_claimed   = asset(0, AMAX_SYMBOL);
+         r.created_at      = current_time_point();
+      });
+   } else {
+      _voter_t.modify( itr, get_self(), [&]( auto& r ) {
+         r.amount          += quantity;
+         r.updated_at      = current_time_point();
+      });
+   }
+   
    CHECKC( _gstate.total_vote_recd + quantity <= _gstate.pool_vote_quota, err::OVER_QUOTA, "over quota" );
    _gstate.total_vote_recd += quantity;
    _global.set( _gstate, get_self() );
