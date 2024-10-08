@@ -53,7 +53,7 @@ void bbpminerpool::ontoken_transfer( name from, name to, asset quantity, string 
             r.updated_at      = current_time_point();
          });
          //转账
-         TRANSFER( AMAX_BANK, from, reward, "");
+         TRANSFER( AMAX_BANK, itr->account, reward, "");
          itr++;
       }
 
