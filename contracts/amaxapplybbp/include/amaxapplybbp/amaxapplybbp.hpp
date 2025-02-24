@@ -269,7 +269,7 @@ class [[eosio::contract("amaxapplybbp")]] amaxapplybbp : public contract {
       
         for (auto& bbp : bbps) {
             auto bbp_itr = _ibbp_t.find( bbp.value );
-            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_EXISTING, "bbp already exists" );
+            CHECKC(bbp_itr !=  _ibbp_t.end(), err::RECORD_EXISTING, "bbp not already exists" );
             _ibbp_t.modify( bbp_itr, _self, [&]( auto& row ) {
                row.rewarder    = rewarder;
                row.updated_at  = current_time_point();
