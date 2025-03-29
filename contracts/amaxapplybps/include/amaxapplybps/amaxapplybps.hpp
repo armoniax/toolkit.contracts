@@ -95,6 +95,8 @@ class [[eosio::contract("amaxapplybps")]] amaxapplybps : public contract {
 
    ACTION refreshbbp(const uint32_t& count);
 
+   ACTION setinterval(const uint32_t& scan_interval_minutes);
+
    // ACTION setstatus( const name& submiter, const name& owner, const name& status);
 
 
