@@ -35,7 +35,16 @@ using namespace amax;
       _gstate_scan.current_producer = ""_n;
       _gstate_scan.current_producer_key = 0;
    }
-      
+   
+   void amaxapplybps::setproducer(const name& producer) {
+
+      producers_table producttable(_gstate.sys_contract, _gstate.sys_contract.value);
+      auto producer_itr =  producttable.find(producer.value);
+      CHECKC( producer_itr != producttable.end(), err::RECORD_NOT_FOUND, "producer not found");
+      CHECKC( producer_itr->is_active, err::RECORD_NOT_FOUND, "producer not active");
+      _gstate_scan.current_producer = producer;
+      _gstate_scan.current_producer_key = producer_itr->by_elected_prod();
+   }
    void amaxapplybps::refreshbbp(const uint32_t& count) {
       CHECKC(count > 0, err::PARAM_ERROR, "count must be positive");
       
@@ -57,34 +66,31 @@ using namespace amax;
 
       amax_system::addproducer_action addproducer_act(_gstate.sys_contract, {_self, "active"_n});
       uint32_t execute_count = 0;
-      name last_processed_producer = ""_n;
    
       while (itr != idx.end() && execute_count < count) {
          if (!itr->is_active) {
-            ++itr;
-            continue;
+            itr = idx.end();
+            eosio::print("producer not active: " , itr->owner, " ", itr->by_elected_prod() , "\n");
+            break;
          }
-
-         // 先保存下一个迭代器，防止send后失效
-         auto next_itr = itr;
-         ++next_itr;
 
          // 执行操作
          uint16_t reward_shared_ratio = itr->ext ? itr->ext->reward_shared_ratio : 0;
          addproducer_act.send(itr->owner, itr->producer_authority, itr->url, itr->location, reward_shared_ratio);
-         
-         last_processed_producer = itr->owner;
          execute_count++;
-         itr = next_itr;
+         itr++;
       }
-   
+      eosio::print("producer processed count:", execute_count, "\n");
+      
       // 更新状态
       if (itr == idx.end()) {
-            _gstate_scan.current_producer = ""_n;
-            _gstate_scan.current_producer_key = 0;
+         _gstate_scan.current_producer = ""_n;
+         _gstate_scan.current_producer_key = 0;
+         eosio::print("all producers processed" , "\n");
       } else {
-            _gstate_scan.current_producer = itr->owner;
-            _gstate_scan.current_producer_key = itr->by_elected_prod();
+         _gstate_scan.current_producer = itr->owner;
+         _gstate_scan.current_producer_key = itr->by_elected_prod();
+         eosio::print("next producer: ", _gstate_scan.current_producer, " ", _gstate_scan.current_producer_key , "\n");
       }
    }
 

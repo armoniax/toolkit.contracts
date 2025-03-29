@@ -98,7 +98,7 @@ class [[eosio::contract("amaxapplybps")]] amaxapplybps : public contract {
    ACTION setinterval(const uint32_t& scan_interval_minutes);
 
    // ACTION setstatus( const name& submiter, const name& owner, const name& status);
-
+   ACTION setproducer(const name& producer);
 
    private:
       global_singleton    _global;
