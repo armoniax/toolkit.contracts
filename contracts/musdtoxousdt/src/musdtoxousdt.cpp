@@ -90,13 +90,12 @@ void musdtoxousdt::ontransfer(name from, name to, asset quantity, std::string me
         });
     }
     config_table(get_self(), get_self().value).set(state, get_self());
-    process(10);
-    // Deliver any legacy credit too; new orders pay directly in process().
-    if (memo.empty()) claim(from);
+    process_queue();
 }
 
-void musdtoxousdt::process(uint16_t max_orders) {
-    check(max_orders > 0 && max_orders <= 20, "max_orders must be 1..20");
+void musdtoxousdt::process_queue() {
+    // Bound CPU use; remaining orders wait for the next swap or refuel.
+    constexpr uint16_t max_orders = 10;
     auto state = config();
     orders_table orders(get_self(), get_self().value);
     auto index = orders.get_index<"bydirection"_n>();
@@ -126,20 +125,4 @@ void musdtoxousdt::process(uint16_t max_orders) {
             progress = true;
         }
     }
-}
-
-void musdtoxousdt::claim(name owner) {
-    // Backward compatibility for credits created before direct payouts.
-    // New orders never write this table. Delivery always goes to the owner.
-    credits_table credits(get_self(), get_self().value);
-    const auto itr = credits.find(owner.value);
-    if (itr == credits.end()) return;
-    const auto musdt = itr->musdt;
-    const auto usdt = itr->usdt;
-    credits.modify(itr, same_payer, [&](auto& row) {
-        row.musdt.amount = 0;
-        row.usdt.amount = 0;
-    });
-    if (musdt.amount > 0) send(owner, musdt, "swap payout");
-    if (usdt.amount > 0) send(owner, usdt, "swap payout");
 }

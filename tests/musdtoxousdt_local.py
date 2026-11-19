@@ -50,7 +50,7 @@ def orders():
 
 
 def snapshot():
-    return [config(), orders(), cli('get', 'table', SWAP, SWAP, 'credits')['rows']] + [cli('get', 'table', code, owner, 'accounts')['rows']
+    return [config(), orders()] + [cli('get', 'table', code, owner, 'accounts')['rows']
                          for code in ('amax.mtoken', 'usdt.token', 'fake.token')
                          for owner in ('alice', SWAP)]
 
@@ -101,6 +101,15 @@ try:
     permission(True)
     for code, symbol in (('amax.mtoken', 'MUSDT'), ('usdt.token', 'USDT'), ('fake.token', 'MUSDT')):
         push(code, 'mint', ['alice', '1000.000000 ' + symbol], code)
+    abi = cli('get', 'abi', SWAP)
+    assert {t['name'] for t in abi['tables']} == {'config', 'orders'}
+    assert {a['name'] for a in abi['actions']} == {'setconfig', 'claimfees'}
+    # Removed actions must fail WASM dispatch, even with raw action data.
+    for removed_action in ('claim', 'process'):
+        cli('push', 'transaction', json.dumps({'actions': [{
+            'account': SWAP, 'name': removed_action,
+            'authorization': [{'actor': 'alice', 'permission': 'active'}],
+            'data': ''}]}), '-j', '-f', error='8000000000000000000')
     print('Local AMAX node and contracts ready', flush=True)
     # Empty memo queues instead of failing. Incoming swap tokens become liquidity.
     transfer('amax.mtoken', '100.000000 MUSDT')
@@ -128,7 +137,6 @@ try:
     usdt_after = cli('get', 'table', 'usdt.token', 'alice', 'accounts')['rows'][0]['balance']
     from decimal import Decimal
     assert Decimal(usdt_after.split()[0]) - Decimal(usdt_before.split()[0]) == Decimal('19.910000')
-    assert cli('get', 'table', SWAP, SWAP, 'credits')['rows'] == []
     assert [row['input'] for row in orders()] == ['5.000000 MUSDT']
     transfer('usdt.token', '5.000000 USDT', 'refuel')
     assert orders() == [] and config()['usdt_liquidity'] == '0.000000 USDT'
@@ -142,8 +150,6 @@ try:
     push(SWAP, 'setconfig', [SWAP, '1.000000 MUSDT', '2.000000 USDT'], 'alice', error='missing authority')
     push(SWAP, 'setconfig', [SWAP, '0.000000 MUSDT', '1.000000 USDT'], SWAP, error='expected positive')
     push(SWAP, 'setconfig', [SWAP, '1.00000 MUSDT', '1.000000 USDT'], SWAP, error='expected positive')
-    push(SWAP, 'process', [0], 'alice', error='max_orders must be 1..20')
-    push(SWAP, 'process', [21], 'alice', error='max_orders must be 1..20')
     assert snapshot() == before
     # Existing order holds its original quote after administrator changes the rate.
     transfer('amax.mtoken', '2.000000 MUSDT')
@@ -168,7 +174,7 @@ try:
     assert config()['usdt_fees'] == '0.000000 USDT'
     assert config()['usdt_liquidity'] == pool_before
     print('PASS: input validation, admin authorization, locked quotes, reciprocal rates, atomic payout rollback, fee claims', flush=True)
-    # A batch is bounded; deposits only trigger 10 fills and anyone can continue.
+    # A batch is bounded; ONLY the next swap/refuel can continue the queue.
     push(SWAP, 'setconfig', [SWAP, '1.000000 MUSDT', '1.000000 USDT'], SWAP)
     transfer('amax.mtoken', '1.000000 MUSDT')
     for _ in range(12):
@@ -176,9 +182,10 @@ try:
     assert len(orders()) == 12
     transfer('usdt.token', '12.000000 USDT', 'refuel')
     assert len(orders()) == 2
-    push(SWAP, 'process', [1], 'alice')
-    assert len(orders()) == 1
-    push(SWAP, 'process', [20], 'alice')
+    remaining_ids = [row['id'] for row in orders()]
+    transfer('amax.mtoken', '1.000000 MUSDT')
+    assert len(orders()) == 1 and orders()[0]['id'] > max(remaining_ids)
+    transfer('usdt.token', '1.000000 USDT', 'refuel')
     assert orders() == []
     # Transfer administration; old administrator loses access.
     push(SWAP, 'setconfig', ['alice', '1.000000 MUSDT', '1.000000 USDT'], SWAP)
@@ -208,13 +215,7 @@ try:
     push('rejector', 'setreject', [False], 'rejector')
     transfer('usdt.token', '3.000000 USDT', 'refuel')
     assert orders() == []
-    credits = cli('get', 'table', SWAP, SWAP, 'credits')['rows']
-    assert credits == []
     assert cli('get', 'table', 'usdt.token', 'rejector', 'accounts')['rows'] == [{'balance': '2.000000 USDT'}]
-    # Legacy claim remains harmless; new orders never require it.
-    before = snapshot()
-    push(SWAP, 'claim', ['alice'], 'alice')
-    assert snapshot() == before
     from decimal import Decimal
     state = config()
     for code, sym, field in [('amax.mtoken', 'MUSDT', 'musdt'), ('usdt.token', 'USDT', 'usdt')]:
@@ -222,9 +223,8 @@ try:
         amount = lambda value: Decimal(value.split()[0])
         actual_balance = next(amount(row['balance']) for row in actual if row['balance'].endswith(' ' + sym))
         accounted = amount(state[field + '_liquidity']) + amount(state[field + '_fees'])
-        accounted += sum(amount(row[field]) for row in credits)
         assert actual_balance == accounted, (sym, actual_balance, accounted)
     print('PASS: configurable/locked fees, zero fee dust, automatic queued payouts, atomic batch rollback and retry', flush=True)
-    print('PASS: bounded batches, permissionless continuation, admin transfer', flush=True)
+    print('PASS: bounded batches, swap/refuel-only FIFO continuation, admin transfer', flush=True)
 finally:
     run(['docker', 'rm', '-f', NODE], check=False)

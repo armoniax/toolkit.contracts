@@ -14,12 +14,6 @@ public:
     void setconfig(eosio::name admin, eosio::asset musdt_rate, eosio::asset usdt_rate, uint16_t fee_bps);
 
     [[eosio::action]]
-    void process(uint16_t max_orders);
-
-    [[eosio::action]]
-    void claim(eosio::name owner);
-
-    [[eosio::action]]
     void claimfees(eosio::name to, eosio::asset quantity);
 
     [[eosio::on_notify("*::transfer")]]
@@ -62,15 +56,6 @@ private:
     using orders_table = eosio::multi_index<"orders"_n, order_row,
         eosio::indexed_by<"bydirection"_n, eosio::const_mem_fun<order_row, uint128_t, &order_row::by_direction>>>;
 
-    struct [[eosio::table("credits")]] credit_row {
-        eosio::name owner;
-        eosio::asset musdt{0, musdt_symbol};
-        eosio::asset usdt{0, usdt_symbol};
-        uint64_t primary_key() const { return owner.value; }
-        EOSLIB_SERIALIZE(credit_row, (owner)(musdt)(usdt))
-    };
-    using credits_table = eosio::multi_index<"credits"_n, credit_row>;
-
     // External token layout only; excluded from our published ABI by clean_abi.py.
     struct token_account {
         eosio::asset balance;
@@ -79,6 +64,7 @@ private:
     };
     using token_accounts = eosio::multi_index<"accounts"_n, token_account>;
 
+    void process_queue();
     eosio::asset balance(eosio::name token_contract, eosio::symbol symbol) const;
     config_row config() const;
     void send(eosio::name to, eosio::asset quantity, const std::string& memo) const;
