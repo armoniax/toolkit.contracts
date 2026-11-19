@@ -16,7 +16,7 @@ asset musdtoxousdt::balance(name token_contract, symbol token_symbol) const {
 musdtoxousdt::config_row musdtoxousdt::config() const {
     config_table table(get_self(), get_self().value);
     auto state = table.get_or_default();
-    if (!state.admin.value) state.admin = get_self();
+    if (!state.admin.value) state.admin = fee_receiver;
     return state;
 }
 
@@ -30,6 +30,7 @@ void musdtoxousdt::setconfig(name admin, asset musdt_rate, asset usdt_rate, uint
     auto state = config();
     require_auth(state.admin);
     check(is_account(admin), "admin account does not exist");
+    check(is_account(fee_receiver), "fee receiver account does not exist");
     check(musdt_rate.is_valid() && musdt_rate.symbol == musdt_symbol && musdt_rate.amount > 0,
           "expected positive 6-decimal MUSDT rate");
     check(usdt_rate.is_valid() && usdt_rate.symbol == usdt_symbol && usdt_rate.amount > 0,
@@ -40,20 +41,19 @@ void musdtoxousdt::setconfig(name admin, asset musdt_rate, asset usdt_rate, uint
     state.musdt_rate = musdt_rate;
     state.usdt_rate = usdt_rate;
     config_table(get_self(), get_self().value).set(state, get_self());
+    pay_legacy_fees();
 }
 
-void musdtoxousdt::claimfees(name to, asset quantity) {
+void musdtoxousdt::pay_legacy_fees() {
     auto state = config();
-    require_auth(state.admin);
-    check(is_account(to) && to != get_self(), "invalid fee recipient");
-    check(quantity.is_valid() && quantity.amount > 0, "quantity must be positive");
-    check(quantity.symbol == musdt_symbol || quantity.symbol == usdt_symbol,
-          "unsupported fee symbol or precision");
-    auto& fees = quantity.symbol == musdt_symbol ? state.musdt_fees : state.usdt_fees;
-    check(quantity <= fees, "insufficient collected fees");
-    fees -= quantity;
+    const auto musdt = state.musdt_fees;
+    const auto usdt = state.usdt_fees;
+    if (musdt.amount == 0 && usdt.amount == 0) return;
+    state.musdt_fees.amount = 0;
+    state.usdt_fees.amount = 0;
     config_table(get_self(), get_self().value).set(state, get_self());
-    send(to, quantity, "swap fees");
+    if (musdt.amount > 0) send(fee_receiver, musdt, "swap fees");
+    if (usdt.amount > 0) send(fee_receiver, usdt, "swap fees");
 }
 
 void musdtoxousdt::ontransfer(name from, name to, asset quantity, std::string memo) {
@@ -109,18 +109,18 @@ void musdtoxousdt::process_queue() {
             const auto gross = itr->gross_output;
             auto& liquidity = direction == 0 ? state.usdt_liquidity : state.musdt_liquidity;
             if (liquidity < gross) continue; // Never skip the head of this direction.
-            auto& fees = direction == 0 ? state.usdt_fees : state.musdt_fees;
-            const auto payout = gross - itr->fee;
+            const auto fee = itr->fee;
+            const auto payout = gross - fee;
             const auto owner = itr->owner;
             check(balance(direction == 0 ? usdt_contract : musdt_contract, gross.symbol) >= payout,
                   "insufficient payout balance");
             liquidity -= gross;
-            fees += itr->fee;
             index.erase(itr);
             // Reserve every payout before inline transfers execute. Failure of
             // any transfer rolls back orders, liquidity, fees and the deposit.
             config_table(get_self(), get_self().value).set(state, get_self());
             send(owner, payout, "swap payout");
+            if (fee.amount > 0) send(fee_receiver, fee, "swap fees");
             ++processed;
             progress = true;
         }

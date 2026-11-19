@@ -44,7 +44,7 @@ public:
     }
     [[eosio::on_notify("*::transfer")]]
     void ontransfer(name from, name to, asset quantity, std::string memo) {
-        if (to == get_self() && memo == "swap payout") {
+        if (to == get_self() && (memo == "swap payout" || memo == "swap fees")) {
             check(!reject_table(get_self(), get_self().value).get_or_default().reject,
                   "recipient refuses payout");
         }

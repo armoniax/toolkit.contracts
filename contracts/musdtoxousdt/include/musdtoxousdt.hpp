@@ -13,14 +13,12 @@ public:
     [[eosio::action]]
     void setconfig(eosio::name admin, eosio::asset musdt_rate, eosio::asset usdt_rate, uint16_t fee_bps);
 
-    [[eosio::action]]
-    void claimfees(eosio::name to, eosio::asset quantity);
-
     [[eosio::on_notify("*::transfer")]]
     void ontransfer(eosio::name from, eosio::name to,
                     eosio::asset quantity, std::string memo);
 
 private:
+    static constexpr eosio::name fee_receiver = eosio::name("amgenesisdao");
     static constexpr eosio::name musdt_contract = eosio::name("amax.mtoken");
     static constexpr eosio::name usdt_contract = eosio::name("usdt.token");
     static constexpr eosio::symbol musdt_symbol = eosio::symbol("MUSDT", 6);
@@ -34,6 +32,7 @@ private:
         uint64_t next_id = 1;
         eosio::asset musdt_liquidity{0, musdt_symbol};
         eosio::asset usdt_liquidity{0, usdt_symbol};
+        // Retained for upgrade compatibility: historical unpaid fees only.
         eosio::asset musdt_fees{0, musdt_symbol};
         eosio::asset usdt_fees{0, usdt_symbol};
         EOSLIB_SERIALIZE(config_row, (admin)(musdt_rate)(usdt_rate)(fee_bps)(next_id)(musdt_liquidity)(usdt_liquidity)(musdt_fees)(usdt_fees))
@@ -64,6 +63,7 @@ private:
     };
     using token_accounts = eosio::multi_index<"accounts"_n, token_account>;
 
+    void pay_legacy_fees();
     void process_queue();
     eosio::asset balance(eosio::name token_contract, eosio::symbol symbol) const;
     config_row config() const;

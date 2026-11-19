@@ -4,7 +4,7 @@ project(src_tools)
 
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 1)
-set(VERSION_PATCH 2)
+set(VERSION_PATCH 3)
 # set(VERSION_SUFFIX alpha)
 
 if (VERSION_SUFFIX)

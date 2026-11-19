@@ -7,12 +7,12 @@ AMAX 上的开放式 MUSDT / USDT 兑换池。
 - 空备注：创建兑换订单，兑出的币归转入者；收到的币同时进入公共流动性。
 - 精确备注 `refuel`：仅补充所转入币种的公共流动性，不创建订单，不获得兑换币、份额或退款权。
 - 其他备注、币种或精度均拒绝，整笔转账回滚。
-- 默认比例为 `1 MUSDT = 1 USDT`。初始管理员为合约账户；仅当前管理员可修改比例和管理员。
-- 手续费默认为兑出总额的 **0.3%**，管理员可通过 `fee_bps` 配置（30 = 0.3%，范围 0–9999，即 0% 至 99.99%），使用兑出币种收取，不计入可用流动性。
+- 默认比例为 `1 MUSDT = 1 USDT`。初始管理员为 `amgenesisdao`；仅当前管理员可修改比例和管理员。
+- 手续费默认为兑出总额的 **0.3%**，管理员可通过 `fee_bps` 配置（30 = 0.3%，范围 0–9999，即 0% 至 99.99%），使用兑出币种收取，每笔成交直接转到固定收款账户 `amgenesisdao`，不计入可用流动性。`claimfees` 独立动作已移除；即使之后变更管理员，手续费收款地址仍固定为 `amgenesisdao`。
 
 ## 流动性、队列及到账
 
-可兑换额度来自 `config` 表的 `musdt_liquidity` / `usdt_liquidity`，不再单独手工设置额度。两者不包含已收手续费。不要直接 issue/mint 给合约：没有 transfer 通知的入账不会记为流动性。
+可兑换额度来自 `config` 表的 `musdt_liquidity` / `usdt_liquidity`，不再单独手工设置额度。新手续费会立即转走。`musdt_fees` / `usdt_fees` 字段为保持已部署表结构兼容而保留，仅表示旧版本未转出的手续费；升级时通过 `setconfig` 将其自动转给 `amgenesisdao` 并清零，新订单不再增加这些字段。不要直接 issue/mint 给合约：没有 transfer 通知的入账不会记为流动性。
 
 每个方向独立 FIFO。目标流动性不足时，订单保留在 `orders` 表，不报额度不足错误；队首必须整单成交，不会拆单，也不会让小订单插队。比例和手续费在订单提交时锁定，管理员后续修改不影响已有订单。
 
@@ -22,11 +22,11 @@ AMAX 上的开放式 MUSDT / USDT 兑换池。
 
 `credits` 表和 `claim` 动作已移除；升级前必须确认旧表为空。
 
-直接付款采用整笔交易原子执行：如果某个收款合约拒收代币，本批付款及触发本批处理的转入都会回滚，订单和费用保持原状；该方向的拒收队首仍会阻塞后续成交。这是直接付款与原先隔离领取方式的行为差异。
+直接付款采用整笔交易原子执行：如果用户收款合约或手续费收款合约拒收代币，本批付款及触发本批处理的转入都会回滚，订单和费用保持原状；该方向的拒收队首仍会阻塞后续成交。这是直接付款与原先隔离领取方式的行为差异。
 
 转入的兑换本金会立即加入池子，可用于另一方向成交，因此订单没有取消/退款接口。余额不足时需等待流动性补充；链上不会自行定时执行，仅由下一笔兑换或 `refuel` 转入触发。
 
-采用整数运算：总兑出金额向下取整至 6 位，手续费向上取整至最小单位；净兑出为零的订单拒绝。默认比例下转入 `100.000000 MUSDT`，获得 `99.700000 USDT`，记录 `0.300000 USDT` 手续费。
+采用整数运算：总兑出金额向下取整至 6 位，手续费向上取整至最小单位；净兑出为零的订单拒绝。默认比例下转入 `100.000000 MUSDT`，获得 `99.700000 USDT`，同时将 `0.300000 USDT` 手续费转给 `amgenesisdao`。
 
 ## 构建与本地回归
 
@@ -50,10 +50,7 @@ amcli push action usdt.token transfer '["alice","musdtoxousdt","100.000000 USDT"
 amcli push action amax.mtoken transfer '["alice","musdtoxousdt","10.000000 MUSDT",""]' -p alice
 
 # 管理员设置 1 MUSDT = 2 USDT；反向使用倒数
-amcli push action musdtoxousdt setconfig '["musdtoxousdt","1.000000 MUSDT","2.000000 USDT",30]' -p musdtoxousdt
-
-# 管理员提取已实际收取的手续费，不能提取公共流动性
-amcli push action musdtoxousdt claimfees '["alice","0.300000 USDT"]' -p musdtoxousdt
+amcli push action musdtoxousdt setconfig '["amgenesisdao","1.000000 MUSDT","2.000000 USDT",30]' -p amgenesisdao
 
 amcli get table musdtoxousdt musdtoxousdt config
 amcli get table musdtoxousdt musdtoxousdt orders
