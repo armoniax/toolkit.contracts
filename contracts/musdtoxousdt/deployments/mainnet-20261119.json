@@ -1,0 +1,56 @@
+{
+  "network": "AMAX mainnet",
+  "chain_id": "2403d6f602a87977f898aa3c62c79a760f458745904a15b3cd63a106f62adc16",
+  "account": "musdtoxousdt",
+  "verified_at_utc": "2026-11-19T09:52:16.725126+00:00",
+  "last_irreversible_block_num": 145215015,
+  "wasm_sha256": "5d75f6d9ba90d9db95cea22fe5fdea1c1b66e03db012fe8f74dab9d4ef1c92f3",
+  "config": {
+    "admin": "musdtoxousdt",
+    "musdt_rate": "1.000000 MUSDT",
+    "usdt_rate": "1.000000 USDT",
+    "fee_bps": 30,
+    "next_id": 1,
+    "musdt_liquidity": "0.000000 MUSDT",
+    "usdt_liquidity": "0.000000 USDT",
+    "musdt_fees": "0.000000 MUSDT",
+    "usdt_fees": "0.000000 USDT"
+  },
+  "core_liquid_balance": "12.00000000 AMAX",
+  "ram_usage": 280625,
+  "ram_quota": 397686,
+  "ram_payer": "myrealmeacct",
+  "ram_purchase_total": "1.73055593 AMAX",
+  "funding_from": "armoniaadmin",
+  "funding_amount": "10.00000000 AMAX",
+  "transactions": {
+    "buyram": {
+      "id": "f34ae6c24a1d6dc8a47624f3626246e8f6f65c8e77c89a6f0a4fdae1384c996e",
+      "block_num": 145214920
+    },
+    "funding": {
+      "id": "104024d56c650b3984577eb3f8b96cb00b04b2e4c3237c0126b1ac014168f952",
+      "block_num": 145214940
+    },
+    "deploy": {
+      "id": "63431ec01c0ebe6fb00350f1e04fa62c64f8b40fbce012d8ed2554f0b0d0f652",
+      "block_num": 145214955
+    },
+    "configure": {
+      "id": "a01e7317fd3c84649347869e85e86e719ae4f1e24c8c6d768e61e861deb44ccc",
+      "block_num": 145214976
+    }
+  },
+  "abi_cleanup": {
+    "transaction_id": "e36c2a5b4b3bb8ede9650e3d5889b02c979fff6c8ba6ae95397a7c20e5a367ed",
+    "block_num": 145215365,
+    "status": "executed",
+    "readback_verified_at_utc": "2026-11-19T09:55:27.799322+00:00",
+    "abi_sha256": "56bd39589c33d27328479f7ee5d6e3007711b99016dcdbb44fb0f593f49baab4",
+    "tables": [
+      "config",
+      "credits",
+      "orders"
+    ]
+  }
+}
